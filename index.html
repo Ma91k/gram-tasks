@@ -495,3 +495,109 @@
     wrapper.className = "card task";
 
     const logo = document.createElement("div");
+    logo.className = "task-logo";
+    logo.textContent = task.icon || "🎯";
+
+    const info = document.createElement("div");
+    info.className = "task-info";
+    info.innerHTML = `
+      <b>${task.title}</b>
+      <span class="reward">💎 +${formatReward(task.reward)} GRAM</span>
+    `;
+
+    const button = document.createElement("button");
+    button.className = task.completed ? "btn secondary" : "btn";
+    button.textContent = task.completed ? "Выполнено" : "Открыть";
+    button.disabled = task.completed;
+
+    let opened = false;
+
+    button.addEventListener("click", async () => {
+      if (task.completed) return;
+
+      if (!opened) {
+        openTaskTarget(task);
+        opened = true;
+        button.textContent = "Проверить";
+        return;
+      }
+
+      const oldText = button.textContent;
+      button.disabled = true;
+      button.textContent = "Проверяем...";
+
+      try {
+        const result = await apiPost(`/api/tasks/${task.id}/verify`);
+        showToast(result.message);
+
+        if (result.completed) {
+          task.completed = true;
+          button.textContent = "Выполнено";
+          button.className = "btn secondary";
+          updateUserUi(result.user);
+          await loadTasks();
+          return;
+        }
+      } catch (error) {
+        showToast(error.message);
+      }
+
+      button.disabled = false;
+      button.textContent = oldText;
+    });
+
+    wrapper.append(logo, info, button);
+    return wrapper;
+  }
+
+  async function loadTasks() {
+    try {
+      const data = await apiPost("/api/tasks");
+      const allTasks = data.tasks || [];
+
+      const homeList = document.getElementById("homeTaskList");
+      const tasksList = document.getElementById("tasksTaskList");
+
+      if (homeList) {
+        homeList.replaceChildren(
+          ...allTasks.slice(0, 2).map(makeTaskElement)
+        );
+      }
+
+      if (tasksList) {
+        tasksList.replaceChildren(
+          ...allTasks.map(makeTaskElement)
+        );
+      }
+    } catch (error) {
+      console.error(error);
+      showToast(error.message || "Не удалось загрузить задания");
+    }
+  }
+
+  async function loadUserData() {
+    try {
+      const data = await apiPost("/api/me");
+      updateUserUi(data.user);
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  async function loadAppData() {
+    await Promise.all([loadUserData(), loadTasks()]);
+  }
+
+  const user=tg?.initDataUnsafe?.user;
+  if(user){
+    const name=[user.first_name,user.last_name].filter(Boolean).join(" ");
+    const initials=((user.first_name?.[0]||"")+(user.last_name?.[0]||"")).toUpperCase()||"GT";
+    document.getElementById("hello").textContent="Привет, "+(name||user.first_name||"Пользователь")+" 👋";
+    document.getElementById("topAvatar").textContent=initials;
+    document.getElementById("profileAvatar").textContent=initials;
+    document.getElementById("profileName").textContent=name||"Пользователь Telegram";
+    document.getElementById("profileId").textContent="ID: "+user.id;
+  }
+</script>
+</body>
+  </html>
