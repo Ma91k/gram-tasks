@@ -334,45 +334,63 @@
   document.querySelectorAll(".back").forEach(b=>b.addEventListener("click",()=>openPage("home")));
   document.getElementById("joinChannel").addEventListener("click",()=>tg?tg.openTelegramLink("https://t.me/Gram_taskss"):window.open("https://t.me/Gram_taskss","_blank"));
   const API_URL = "https://gram-tasks-backend.onrender.com";
+  const SUBSCRIPTION_CACHE_KEY = "gram_tasks_subscription_ok";
+
+  function showApplication() {
+    sub.classList.remove("active");
+    app.classList.add("active");
+    nav.classList.remove("hidden");
+  }
+
+  function showSubscriptionScreen() {
+    localStorage.removeItem(SUBSCRIPTION_CACHE_KEY);
+    app.classList.remove("active");
+    nav.classList.add("hidden");
+    sub.classList.add("active");
+  }
+
+  async function requestSubscriptionStatus() {
+    if (!tg || !tg.initData) {
+      throw new Error("Откройте Mini App через Telegram-бота");
+    }
+
+    const response = await fetch(`${API_URL}/api/check-subscription`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        init_data: tg.initData
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.detail || "Ошибка проверки подписки");
+    }
+
+    return data.subscribed === true;
+  }
 
   async function checkRealSubscription() {
     const button = document.getElementById("checkSubscription");
     const originalText = button.textContent;
 
-    if (!tg || !tg.initData) {
-      showToast("Откройте Mini App через Telegram-бота");
-      return;
-    }
-
     button.disabled = true;
     button.textContent = "Проверяем...";
 
     try {
-      const response = await fetch(`${API_URL}/api/check-subscription`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          init_data: tg.initData
-        })
-      });
+      const subscribed = await requestSubscriptionStatus();
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.detail || "Ошибка проверки подписки");
-      }
-
-      if (data.subscribed) {
-        sub.classList.remove("active");
-        app.classList.add("active");
-        nav.classList.remove("hidden");
+      if (subscribed) {
+        localStorage.setItem(SUBSCRIPTION_CACHE_KEY, "1");
+        showApplication();
         showToast("Подписка подтверждена");
-        return;
+      } else {
+        showSubscriptionScreen();
+        showToast("Сначала подпишитесь на канал");
       }
-
-      showToast("Сначала подпишитесь на канал");
     } catch (error) {
       console.error(error);
       showToast(error.message || "Сервер временно недоступен");
@@ -382,10 +400,31 @@
     }
   }
 
+  async function silentSubscriptionCheck() {
+    try {
+      const subscribed = await requestSubscriptionStatus();
+
+      if (subscribed) {
+        localStorage.setItem(SUBSCRIPTION_CACHE_KEY, "1");
+        return;
+      }
+
+      showSubscriptionScreen();
+      showToast("Подписка на канал больше не активна");
+    } catch (error) {
+      console.error("Silent subscription check failed:", error);
+    }
+  }
+
   document.getElementById("checkSubscription").addEventListener(
     "click",
     checkRealSubscription
   );
+
+  if (localStorage.getItem(SUBSCRIPTION_CACHE_KEY) === "1") {
+    showApplication();
+    setTimeout(silentSubscriptionCheck, 300);
+  }
   document.querySelectorAll(".task-action").forEach(b=>b.addEventListener("click",()=>showToast("Задание станет рабочим после подключения backend")));
   document.getElementById("withdrawBtn").addEventListener("click",()=>showToast("Вывод станет доступен после подключения backend"));
   document.getElementById("shareBtn").addEventListener("click",()=>showToast("Реферальная ссылка появится после подключения backend"));
