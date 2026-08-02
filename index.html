@@ -210,13 +210,13 @@
       <div class="greeting"><div><h2 id="hello">Привет! 👋</h2><p>Добро пожаловать в GRAM Tasks</p></div><div id="topAvatar" class="avatar">GT</div></div>
       <div class="card balance-card">
         <div class="label">Ваш баланс</div>
-        <div class="balance">0.00 <small>GRAM</small></div>
+        <div class="balance"><span id="balanceValue">0.00</span> <small>GRAM</small></div>
         <div class="row"><button class="btn secondary flex open" data-open="history">▣ История</button><button class="btn flex open" data-open="withdraw">▣ Вывести</button></div>
       </div>
       <div class="stats4">
-        <div class="card stat"><strong>0</strong><span>Заданий выполнено</span></div>
+        <div class="card stat"><strong id="completedTasksValue">0</strong><span>Заданий выполнено</span></div>
         <div class="card stat"><strong>0</strong><span>Активных рефералов</span></div>
-        <div class="card stat"><strong>0</strong><span>Всего заработано</span></div>
+        <div class="card stat"><strong id="totalEarnedValue">0</strong><span>Всего заработано</span></div>
         <div class="card stat"><strong>Soon</strong><span>Ваш уровень</span></div>
       </div>
       <h3 class="section-title">Быстрые действия</h3>
@@ -235,7 +235,7 @@
     <section id="tasks" class="app-screen" hidden>
       <header class="top"><button class="icon-btn back">‹</button><div class="title">Задания</div><button class="icon-btn bell">♧<i class="dot"></i></button></header>
       <div class="tabs"><button class="tab active">Все</button><button class="tab">Подписки</button><button class="tab">Соц. сети</button><button class="tab">Бонусы</button></div>
-      <div class="task-list">
+      <div id="homeTaskList" class="task-list">
         <div class="card task"><div class="task-logo">✈️</div><div class="task-info"><b>Подписаться на канал Telegram</b><span class="reward">💎 +5 GRAM</span></div><button class="btn task-action">Выполнить</button></div>
         <div class="card task"><div class="task-logo red">▶</div><div class="task-info"><b>Посмотреть видео на YouTube</b><span class="reward">💎 +10 GRAM</span></div><button class="btn task-action">Выполнить</button></div>
         <div class="card task"><div class="task-logo">✈️</div><div class="task-info"><b>Пригласить друга</b><span class="reward">💎 +25 GRAM</span></div><button class="btn task-action">Выполнить</button></div>
@@ -386,6 +386,7 @@
       if (subscribed) {
         localStorage.setItem(SUBSCRIPTION_CACHE_KEY, "1");
         showApplication();
+        loadAppData();
         showToast("Подписка подтверждена");
       } else {
         showSubscriptionScreen();
@@ -423,6 +424,7 @@
 
   if (localStorage.getItem(SUBSCRIPTION_CACHE_KEY) === "1") {
     showApplication();
+    loadAppData();
     setTimeout(silentSubscriptionCheck, 300);
   }
   document.querySelectorAll(".task-action").forEach(b=>b.addEventListener("click",()=>showToast("Задание станет рабочим после подключения backend")));
@@ -431,16 +433,65 @@
   document.querySelector(".copy").addEventListener("click",()=>showToast("Ссылка пока недоступна"));
   ["supportBtn","settingsSupport"].forEach(id=>document.getElementById(id).addEventListener("click",()=>showToast("Контакт поддержки добавим позже")));
   ["aboutBtn","settingsAbout"].forEach(id=>document.getElementById(id).addEventListener("click",()=>showToast("GRAM Tasks — задания, рефералы и награды")));
-  const user=tg?.initDataUnsafe?.user;
-  if(user){
-    const name=[user.first_name,user.last_name].filter(Boolean).join(" ");
-    const initials=((user.first_name?.[0]||"")+(user.last_name?.[0]||"")).toUpperCase()||"GT";
-    document.getElementById("hello").textContent="Привет, "+(name||user.first_name||"Пользователь")+" 👋";
-    document.getElementById("topAvatar").textContent=initials;
-    document.getElementById("profileAvatar").textContent=initials;
-    document.getElementById("profileName").textContent=name||"Пользователь Telegram";
-    document.getElementById("profileId").textContent="ID: "+user.id;
+
+  function formatReward(value) {
+    return Number(value).toLocaleString("ru-RU", {
+      maximumFractionDigits: 2
+    });
   }
-</script>
-</body>
-</html>
+
+  function updateUserUi(userData) {
+    const balance = document.getElementById("balanceValue");
+    const completed = document.getElementById("completedTasksValue");
+    const total = document.getElementById("totalEarnedValue");
+
+    if (balance) balance.textContent = formatReward(userData.balance);
+    if (completed) completed.textContent = userData.completed_tasks;
+    if (total) total.textContent = formatReward(userData.total_earned);
+  }
+
+  async function apiPost(path) {
+    if (!tg || !tg.initData) {
+      throw new Error("Откройте приложение через Telegram");
+    }
+
+    const response = await fetch(`${API_URL}${path}`, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({init_data: tg.initData})
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.detail || "Ошибка сервера");
+    }
+
+    return data;
+  }
+
+  function openTaskTarget(task) {
+    if (!task.target) return;
+
+    if (task.target.startsWith("https://t.me/") && tg) {
+      tg.openTelegramLink(task.target);
+      return;
+    }
+
+    if (task.target.startsWith("@") && tg) {
+      tg.openTelegramLink(`https://t.me/${task.target.slice(1)}`);
+      return;
+    }
+
+    if (tg) {
+      tg.openLink(task.target);
+    } else {
+      window.open(task.target, "_blank");
+    }
+  }
+
+  function makeTaskElement(task) {
+    const wrapper = document.createElement("div");
+    wrapper.className = "card task";
+
+    const logo = document.createElement("div");
