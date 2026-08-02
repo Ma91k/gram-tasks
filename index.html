@@ -80,6 +80,7 @@
       background:linear-gradient(90deg,#0879ff,#7939ff)
     }
     .btn.secondary{background:#0c2041;border:1px solid #25436b}
+    .btn:disabled{opacity:.65;cursor:not-allowed}
     .btn.flex{flex:1}
     .stats4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
     .stat{padding:12px 5px;text-align:center}
@@ -332,7 +333,59 @@
   document.querySelectorAll("[data-open]").forEach(b=>b.addEventListener("click",()=>openPage(b.dataset.open)));
   document.querySelectorAll(".back").forEach(b=>b.addEventListener("click",()=>openPage("home")));
   document.getElementById("joinChannel").addEventListener("click",()=>tg?tg.openTelegramLink("https://t.me/Gram_taskss"):window.open("https://t.me/Gram_taskss","_blank"));
-  document.getElementById("checkSubscription").addEventListener("click",()=>{sub.classList.remove("active");app.classList.add("active");nav.classList.remove("hidden");showToast("Подписка подтверждена")});
+  const API_URL = "https://gram-tasks-backend.onrender.com";
+
+  async function checkRealSubscription() {
+    const button = document.getElementById("checkSubscription");
+    const originalText = button.textContent;
+
+    if (!tg || !tg.initData) {
+      showToast("Откройте Mini App через Telegram-бота");
+      return;
+    }
+
+    button.disabled = true;
+    button.textContent = "Проверяем...";
+
+    try {
+      const response = await fetch(`${API_URL}/api/check-subscription`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          init_data: tg.initData
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || "Ошибка проверки подписки");
+      }
+
+      if (data.subscribed) {
+        sub.classList.remove("active");
+        app.classList.add("active");
+        nav.classList.remove("hidden");
+        showToast("Подписка подтверждена");
+        return;
+      }
+
+      showToast("Сначала подпишитесь на канал");
+    } catch (error) {
+      console.error(error);
+      showToast(error.message || "Сервер временно недоступен");
+    } finally {
+      button.disabled = false;
+      button.textContent = originalText;
+    }
+  }
+
+  document.getElementById("checkSubscription").addEventListener(
+    "click",
+    checkRealSubscription
+  );
   document.querySelectorAll(".task-action").forEach(b=>b.addEventListener("click",()=>showToast("Задание станет рабочим после подключения backend")));
   document.getElementById("withdrawBtn").addEventListener("click",()=>showToast("Вывод станет доступен после подключения backend"));
   document.getElementById("shareBtn").addEventListener("click",()=>showToast("Реферальная ссылка появится после подключения backend"));
@@ -351,4 +404,4 @@
   }
 </script>
 </body>
-          </html>
+</html>
