@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#030814">
   <title>GRAM Tasks</title>
+  <!-- GRAM_TASKS_FRONTEND_VERSION: tasks-v2 -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
     :root{
@@ -235,7 +236,7 @@
     <section id="tasks" class="app-screen" hidden>
       <header class="top"><button class="icon-btn back">‹</button><div class="title">Задания</div><button class="icon-btn bell">♧<i class="dot"></i></button></header>
       <div class="tabs"><button class="tab active">Все</button><button class="tab">Подписки</button><button class="tab">Соц. сети</button><button class="tab">Бонусы</button></div>
-      <div id="homeTaskList" class="task-list">
+      <div id="tasksTaskList" class="task-list">
         <div class="card task"><div class="task-logo">✈️</div><div class="task-info"><b>Подписаться на канал Telegram</b><span class="reward">💎 +5 GRAM</span></div><button class="btn task-action">Выполнить</button></div>
         <div class="card task"><div class="task-logo red">▶</div><div class="task-info"><b>Посмотреть видео на YouTube</b><span class="reward">💎 +10 GRAM</span></div><button class="btn task-action">Выполнить</button></div>
         <div class="card task"><div class="task-logo">✈️</div><div class="task-info"><b>Пригласить друга</b><span class="reward">💎 +25 GRAM</span></div><button class="btn task-action">Выполнить</button></div>
@@ -427,7 +428,6 @@
     loadAppData();
     setTimeout(silentSubscriptionCheck, 300);
   }
-  document.querySelectorAll(".task-action").forEach(b=>b.addEventListener("click",()=>showToast("Задание станет рабочим после подключения backend")));
   document.getElementById("withdrawBtn").addEventListener("click",()=>showToast("Вывод станет доступен после подключения backend"));
   document.getElementById("shareBtn").addEventListener("click",()=>showToast("Реферальная ссылка появится после подключения backend"));
   document.querySelector(".copy").addEventListener("click",()=>showToast("Ссылка пока недоступна"));
@@ -555,14 +555,7 @@
       const data = await apiPost("/api/tasks");
       const allTasks = data.tasks || [];
 
-      const homeList = document.getElementById("homeTaskList");
       const tasksList = document.getElementById("tasksTaskList");
-
-      if (homeList) {
-        homeList.replaceChildren(
-          ...allTasks.slice(0, 2).map(makeTaskElement)
-        );
-      }
 
       if (tasksList) {
         tasksList.replaceChildren(
@@ -600,4 +593,4 @@
   }
 </script>
 </body>
-</html>
+  </html>
