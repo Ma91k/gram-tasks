@@ -1,290 +1,354 @@
-<meta name='viewport' content='width=device-width, initial-scale=1'/>eta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#07101f">
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#030814">
   <title>GRAM Tasks</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
     :root{
-      --bg:#07101f;
-      --card:#122038;
-      --soft:rgba(255,255,255,.06);
-      --line:rgba(255,255,255,.08);
-      --text:#fff;
-      --muted:#94a8c6;
-      --accent:#2db8ff;
-      --accent2:#6174ff;
-      --green:#45d483;
-      --yellow:#ffd35c;
+      --bg:#030814;
+      --panel:#081326;
+      --panel2:#0c1930;
+      --line:#17345e;
+      --text:#f7fbff;
+      --muted:#8193af;
+      --blue:#0caeff;
+      --cyan:#17e4f5;
+      --purple:#743cff;
+      --green:#25e98c;
+      --red:#ff4664;
+      --yellow:#ffcd4a;
     }
     *{box-sizing:border-box}
     html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:Arial,sans-serif}
     body{
       background:
-        radial-gradient(circle at 10% 0%,rgba(45,184,255,.22),transparent 36%),
-        radial-gradient(circle at 95% 15%,rgba(97,116,255,.18),transparent 35%),
-        var(--bg);
-      padding-bottom:95px
+        radial-gradient(circle at 10% -5%,rgba(0,173,255,.12),transparent 32%),
+        radial-gradient(circle at 95% 5%,rgba(111,56,255,.12),transparent 34%),
+        #030814;
+      padding-bottom:calc(78px + env(safe-area-inset-bottom));
     }
-    button,input,select{font:inherit}
-    .app{width:min(100%,560px);margin:auto;padding:18px 16px}
-    .screen{display:none}.screen.active{display:block}.hidden{display:none!important}
-    .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
-    .brand{display:flex;align-items:center;gap:11px}
-    .logo,.profile-avatar{
-      display:grid;place-items:center;font-weight:900;
-      background:linear-gradient(135deg,var(--accent),var(--accent2))
+    button,input{font:inherit}
+    button{cursor:pointer}
+    .app{width:min(100%,520px);margin:0 auto;padding:14px 16px 20px}
+    .screen{display:none}.screen.active{display:block}
+    .app-screen[hidden]{display:none!important}
+    .top{
+      height:50px;display:grid;grid-template-columns:40px 1fr 40px;
+      align-items:center;margin-bottom:12px
     }
-    .logo{width:48px;height:48px;border-radius:16px;font-size:27px}
-    .brand h1{margin:0;font-size:21px}.brand small{display:block;margin-top:4px;color:var(--muted)}
-    .avatar{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:var(--soft);border:1px solid var(--line);font-weight:800}
-    .card{padding:17px;border-radius:21px;background:rgba(18,32,56,.96);border:1px solid var(--line)}
+    .icon-btn{
+      width:38px;height:38px;border:0;background:transparent;color:#fff;
+      font-size:22px;border-radius:12px
+    }
+    .title{text-align:center;font-weight:700}
+    .bell{position:relative}
+    .dot{
+      position:absolute;width:7px;height:7px;border-radius:50%;
+      background:var(--red);right:7px;top:6px
+    }
+    .greeting{display:flex;align-items:center;justify-content:space-between;margin:2px 0 15px}
+    .greeting h2{font-size:19px;margin:0 0 4px}
+    .greeting p{margin:0;color:var(--muted);font-size:13px}
+    .avatar{
+      width:48px;height:48px;border-radius:50%;display:grid;place-items:center;
+      background:linear-gradient(145deg,#071b42,#1639ad);
+      border:2px solid #315cff;font-weight:800
+    }
+    .card{
+      background:linear-gradient(180deg,rgba(12,29,57,.98),rgba(6,18,37,.98));
+      border:1px solid var(--line);border-radius:15px
+    }
     .balance-card{
-      padding:23px;border-radius:26px;overflow:hidden;position:relative;
-      background:linear-gradient(145deg,rgba(45,184,255,.24),rgba(97,116,255,.16)),var(--card);
-      border:1px solid rgba(93,191,255,.26)
+      min-height:155px;padding:18px;position:relative;overflow:hidden;
+      background:
+        radial-gradient(circle at 95% 40%,rgba(23,214,255,.24),transparent 23%),
+        linear-gradient(135deg,#07172c,#0b2349 62%,#28137d);
     }
-    .balance-label{color:#c4ddf4;font-size:13px;margin-bottom:8px}
-    .balance{font-size:40px;font-weight:900}.balance span{font-size:17px;color:#c7e8ff}
-    .quick{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-top:18px}
-    .btn{border:0;border-radius:16px;padding:14px;color:#fff;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2))}
-    .btn.secondary{background:var(--soft);border:1px solid var(--line)}.btn.full{width:100%;margin-top:12px}
-    .section-title{display:flex;justify-content:space-between;align-items:center;margin:23px 2px 12px}
-    .section-title h2{margin:0;font-size:18px}.section-title span{color:var(--muted);font-size:13px}
-    .stats{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-    .stat{text-align:center;padding:18px 10px}.stat strong{display:block;font-size:25px;margin-bottom:5px}.stat span{color:var(--muted);font-size:13px}
-    .task-list{display:grid;gap:12px}.task{display:flex;align-items:center;gap:13px}
-    .task-icon{width:48px;height:48px;flex:0 0 48px;border-radius:16px;display:grid;place-items:center;background:rgba(45,184,255,.13);font-size:23px}
-    .task-info{flex:1}.task-info strong{display:block;margin-bottom:5px}.task-info small{color:var(--muted)}
-    .reward{color:var(--green);font-weight:900}.task-btn{border:0;border-radius:12px;padding:10px 12px;color:#fff;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2))}
-    .ref-box{margin:14px 0;padding:13px;border-radius:15px;color:#cdeaff;font-size:13px;word-break:break-all;background:var(--soft);border:1px dashed rgba(255,255,255,.18)}
-    .rule{padding:14px;border-radius:16px;background:rgba(255,211,92,.08);border:1px solid rgba(255,211,92,.16);color:#ffe9a8;font-size:14px;line-height:1.5}
-    .profile-header{text-align:center}.profile-avatar{width:78px;height:78px;margin:0 auto 13px;border-radius:50%;font-size:27px}
-    .profile-header h2{margin:0 0 6px}.hint{color:var(--muted);font-size:13px;line-height:1.5}
-    .menu-list{display:grid;gap:10px}.menu-item{width:100%;display:flex;align-items:center;gap:12px;text-align:left;color:#fff;background:var(--card);border:1px solid var(--line);border-radius:17px;padding:15px}
-    .menu-item .icon{width:40px;height:40px;border-radius:13px;display:grid;place-items:center;background:rgba(45,184,255,.12);font-size:20px}
-    .menu-item .content{flex:1}.menu-item strong{display:block;margin-bottom:3px}.menu-item small{color:var(--muted)}.soon{color:var(--yellow);font-size:12px;font-weight:800}
-    .soon-page{text-align:center;padding:36px 18px}.soon-icon{width:86px;height:86px;margin:0 auto 18px;border-radius:50%;display:grid;place-items:center;font-size:39px;background:linear-gradient(135deg,var(--accent),var(--accent2))}
-    .subscription{text-align:center;padding-top:34px}.subscription-icon{width:90px;height:90px;margin:0 auto 20px;border-radius:50%;display:grid;place-items:center;font-size:42px;background:linear-gradient(135deg,var(--accent),var(--accent2))}
-    .subscription p{color:var(--muted);line-height:1.55}.message{min-height:20px;margin-top:13px;color:var(--yellow);font-size:14px}
-    .nav{position:fixed;left:50%;bottom:0;transform:translateX(-50%);width:min(100%,560px);display:grid;grid-template-columns:repeat(5,1fr);padding:9px 9px calc(9px + env(safe-area-inset-bottom));background:rgba(7,16,31,.94);border-top:1px solid var(--line)}
-    .nav button{border:0;background:transparent;color:#8297b7;padding:7px 2px;font-size:11px}.nav button span{display:block;font-size:21px;margin-bottom:4px}.nav button.active{color:var(--accent)}
+    .balance-card:after{
+      content:"◇";position:absolute;right:20px;top:18px;font-size:65px;
+      color:#32d5ff;text-shadow:0 0 20px #09aaff;transform:rotate(45deg)
+    }
+    .label{color:#a8bad5;font-size:13px}
+    .balance{font-size:34px;font-weight:800;margin:8px 0 16px}
+    .balance small{font-size:15px}
+    .row{display:flex;gap:10px}
+    .btn{
+      border:0;color:#fff;font-weight:700;padding:12px 15px;border-radius:10px;
+      background:linear-gradient(90deg,#0879ff,#7939ff)
+    }
+    .btn.secondary{background:#0c2041;border:1px solid #25436b}
+    .btn.flex{flex:1}
+    .stats4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
+    .stat{padding:12px 5px;text-align:center}
+    .stat strong{display:block;font-size:20px;margin-bottom:5px}
+    .stat span{font-size:10px;color:#9daec5}
+    .section-title{font-size:16px;margin:20px 0 10px}
+    .quick{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+    .quick button{
+      background:#08162c;border:1px solid var(--line);border-radius:12px;
+      color:#fff;padding:11px 4px;font-size:10px
+    }
+    .quick .emoji{display:block;font-size:21px;margin-bottom:7px}
+    .quick b{display:block}.quick small{color:#34d9ff}
+    .promo{
+      margin-top:12px;padding:14px;display:flex;align-items:center;
+      justify-content:space-between;background:linear-gradient(100deg,#0d1744,#32117b);
+    }
+    .promo h3{margin:0 0 4px;font-size:15px}.promo p{margin:0 0 10px;color:#aab7d5;font-size:12px}
+    .gift{font-size:48px}
+    .tabs{display:flex;gap:14px;overflow:auto;margin:4px 0 15px}
+    .tab{
+      border:0;background:transparent;color:#8697b2;padding:8px 12px;
+      border-radius:18px;white-space:nowrap
+    }
+    .tab.active{color:#fff;background:#09204a;box-shadow:inset 0 -2px var(--blue)}
+    .task-list{display:grid;gap:11px}
+    .task{
+      padding:13px;display:flex;align-items:center;gap:12px
+    }
+    .task-logo{
+      width:43px;height:43px;border-radius:50%;display:grid;place-items:center;
+      font-size:22px;background:#118fe8;flex:0 0 43px
+    }
+    .task-logo.red{background:#ff263f}.task-logo.green{background:#05bd75}
+    .task-info{flex:1}.task-info b{display:block;margin-bottom:4px}.reward{color:#24e4ff;font-size:12px;font-weight:700}
+    .task .btn{padding:10px 13px;font-size:12px}
+    .ref-summary{padding:16px;display:grid;grid-template-columns:1fr 1fr 76px;gap:10px;align-items:center}
+    .ref-summary strong{font-size:26px}.ref-summary small{display:block;color:#93a5be;margin-bottom:5px}
+    .circle{
+      width:70px;height:70px;border-radius:50%;display:grid;place-items:center;
+      background:conic-gradient(var(--cyan) 0 67%,#27344c 67% 100%);
+      position:relative;font-weight:700
+    }
+    .circle:after{
+      content:"";position:absolute;inset:8px;border-radius:50%;background:#09172b
+    }
+    .circle span{position:relative;z-index:1}
+    .progress-card{padding:14px;margin-top:11px}
+    .progress-top{display:flex;justify-content:space-between;font-size:12px;color:#a2b1c8;margin-bottom:8px}
+    .track{height:8px;background:#182842;border-radius:999px;overflow:hidden}
+    .track i{display:block;height:100%;width:40%;background:linear-gradient(90deg,#148cff,#21e1f5)}
+    .link-box{display:flex;gap:8px;margin:10px 0}
+    .link-box input{
+      flex:1;min-width:0;background:#07152b;border:1px solid var(--line);
+      border-radius:10px;color:#aabbd3;padding:12px
+    }
+    .copy{width:43px;border:1px solid var(--line);background:#07152b;color:#fff;border-radius:10px}
+    .leader-list{padding:8px 14px}
+    .leader{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid #102646}
+    .leader:last-child{border-bottom:0}.leader .pic{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:#173a65}
+    .leader .info{flex:1}.leader .info small{display:block;color:#8da0bb}.earn{color:#18e9e5;font-size:12px}
+    .withdraw-head{padding:16px}
+    .field-label{display:block;margin:14px 0 7px;font-size:13px}
+    .field{
+      width:100%;background:#07152b;border:1px solid var(--line);border-radius:10px;
+      color:#fff;padding:13px
+    }
+    .amounts{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0}
+    .amounts button{background:#08182e;border:1px solid #234369;color:#fff;border-radius:9px;padding:10px}
+    .amounts button.active{border-color:#1e80ff;background:#0b2e68}
+    .history-list{padding:9px 14px}
+    .history-item{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid #102646}
+    .history-item:last-child{border-bottom:0}.history-item .info{flex:1}.history-item small{display:block;color:#7f92ad}
+    .ok{color:var(--green);font-size:12px}.minus{color:var(--red);font-size:12px}
+    .profile{text-align:center;padding:15px}
+    .profile .avatar{width:74px;height:74px;margin:auto;font-size:26px;border-color:#833dff}
+    .profile h2{margin:10px 0 4px}.profile p{margin:0;color:#8fa1bc;font-size:12px}
+    .level-badge{display:inline-block;margin-top:8px;padding:5px 10px;background:#0a3e68;border-radius:20px;color:#70ddff;font-size:12px}
+    .profile-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0}
+    .profile-stats div{padding:12px 5px}.profile-stats strong{display:block}.profile-stats span{font-size:10px;color:#8ea0ba}
+    .menu-list{padding:6px 12px}
+    .menu-item{
+      width:100%;display:flex;align-items:center;gap:10px;padding:13px 0;
+      color:#fff;background:transparent;border:0;border-bottom:1px solid #102646;text-align:left
+    }
+    .menu-item:last-child{border-bottom:0}.menu-item span:nth-child(2){flex:1}.menu-item small{color:#8da0ba}
+    .level-hero{text-align:center;padding:18px}
+    .diamond{font-size:70px;color:#29d8ff;text-shadow:0 0 18px #148dff}
+    .levels{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0}
+    .level{padding:12px 5px;text-align:center}.level.active{border-color:#1688ff;box-shadow:0 0 0 1px #1688ff inset}
+    .benefits{padding:14px}.benefits div{margin:8px 0;color:#c8d6e9}.benefits b{color:#26e68e}
+    .subscription{text-align:center;padding-top:28px}
+    .subscription .big-icon{font-size:58px;margin-bottom:12px}
+    .subscription h2{font-size:26px}.subscription p{color:#8fa1bb;line-height:1.5}
+    .channel-card{padding:16px;text-align:left;margin-top:16px}
+    .channel-row{display:flex;align-items:center;gap:12px}.channel-logo{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:#149bea}
+    .nav{
+      position:fixed;left:50%;bottom:0;transform:translateX(-50%);
+      width:min(100%,520px);display:grid;grid-template-columns:repeat(5,1fr);
+      background:rgba(3,8,20,.97);border-top:1px solid #102746;
+      padding:7px 6px calc(7px + env(safe-area-inset-bottom));z-index:20
+    }
+    .nav button{border:0;background:transparent;color:#7587a5;padding:5px 2px;font-size:10px}
+    .nav button span{display:block;font-size:20px;margin-bottom:4px}.nav button.active{color:#14b8ff}
+    .toast{position:fixed;left:50%;bottom:95px;transform:translateX(-50%);background:#0c203d;border:1px solid #285684;border-radius:12px;padding:11px 15px;display:none;z-index:50}
   </style>
 </head>
 <body>
 <main class="app">
   <section id="subscription" class="screen active subscription">
-    <div class="subscription-icon">🔔</div>
+    <div class="big-icon">🔔</div>
     <h2>Подпишитесь, чтобы продолжить</h2>
-    <p>Подпишитесь на официальный канал GRAM Tasks, чтобы открыть приложение.</p>
-    <div class="card">
-      <strong>GRAM Tasks</strong>
-      <p class="hint">Новости проекта, задания и обновления.</p>
-      <button id="joinChannel" class="btn full">📣 Вступить в канал</button>
+    <p>Вступите в официальный канал GRAM Tasks и подтвердите подписку.</p>
+    <div class="card channel-card">
+      <div class="channel-row">
+        <div class="channel-logo">✈️</div>
+        <div><b>GRAM Tasks</b><div class="label">Официальный канал проекта</div></div>
+      </div>
+      <button id="joinChannel" class="btn" style="width:100%;margin-top:14px">Вступить в канал</button>
     </div>
-    <button id="checkSubscription" class="btn full">✅ Проверить подписку</button>
-    <div id="subscriptionMessage" class="message"></div>
+    <button id="checkSubscription" class="btn" style="width:100%;margin-top:12px">Проверить подписку</button>
   </section>
 
   <section id="application" class="screen">
-    <header class="topbar">
-      <div class="brand">
-        <div class="logo">G</div>
-        <div><h1>GRAM Tasks</h1><small id="welcomeText">Добро пожаловать</small></div>
-      </div>
-      <div id="avatar" class="avatar">GT</div>
-    </header>
-
     <section id="home" class="app-screen">
-      <div class="balance-card">
-        <div class="balance-label">Доступный баланс</div>
-        <div class="balance">0.00 <span>GRAM</span></div>
-        <div class="quick">
-          <button class="btn open-section" data-section="tasks">Задания</button>
-          <button class="btn secondary open-section" data-section="withdraw">Вывести</button>
-        </div>
+      <header class="top"><button class="icon-btn">☰</button><div class="title">Главная</div><button class="icon-btn bell">♧<i class="dot"></i></button></header>
+      <div class="greeting"><div><h2 id="hello">Привет! 👋</h2><p>Добро пожаловать в GRAM Tasks</p></div><div id="topAvatar" class="avatar">GT</div></div>
+      <div class="card balance-card">
+        <div class="label">Ваш баланс</div>
+        <div class="balance">0.00 <small>GRAM</small></div>
+        <div class="row"><button class="btn secondary flex open" data-open="history">▣ История</button><button class="btn flex open" data-open="withdraw">▣ Вывести</button></div>
       </div>
-      <div class="section-title"><h2>Статистика</h2><span>Первая версия</span></div>
-      <div class="stats">
-        <div class="card stat"><strong>0</strong><span>Выполнено заданий</span></div>
+      <div class="stats4">
+        <div class="card stat"><strong>0</strong><span>Заданий выполнено</span></div>
         <div class="card stat"><strong>0</strong><span>Активных рефералов</span></div>
+        <div class="card stat"><strong>0</strong><span>Всего заработано</span></div>
+        <div class="card stat"><strong>Soon</strong><span>Ваш уровень</span></div>
+      </div>
+      <h3 class="section-title">Быстрые действия</h3>
+      <div class="quick">
+        <button class="open" data-open="tasks"><span class="emoji">📝</span><b>Задания</b><small>+GRAM</small></button>
+        <button class="open" data-open="friends"><span class="emoji">👥</span><b>Друзья</b><small>Пригласить</small></button>
+        <button class="open" data-open="withdraw"><span class="emoji">💳</span><b>Вывод</b><small>Средства</small></button>
+        <button class="open" data-open="profile"><span class="emoji">⭐</span><b>Профиль</b><small>Настройки</small></button>
+      </div>
+      <div class="card promo">
+        <div><h3>Новые задания</h3><p>Следите за обновлениями и получайте больше GRAM.</p><button class="btn open" data-open="tasks">Открыть задания</button></div>
+        <div class="gift">🎁</div>
       </div>
     </section>
 
     <section id="tasks" class="app-screen" hidden>
-      <div class="section-title"><h2>Задания</h2><span>0 выполнено</span></div>
+      <header class="top"><button class="icon-btn back">‹</button><div class="title">Задания</div><button class="icon-btn bell">♧<i class="dot"></i></button></header>
+      <div class="tabs"><button class="tab active">Все</button><button class="tab">Подписки</button><button class="tab">Соц. сети</button><button class="tab">Бонусы</button></div>
       <div class="task-list">
-        <div class="card task">
-          <div class="task-icon">📣</div>
-          <div class="task-info"><strong>Подписаться на GRAM Tasks</strong><small>Награда после проверки</small></div>
-          <button class="task-btn demo-task">Выполнить</button>
-        </div>
-        <div class="card task">
-          <div class="task-icon">🌐</div>
-          <div class="task-info"><strong>Посетить сайт партнёра</strong><small>Награда после проверки</small></div>
-          <button class="task-btn demo-task">Выполнить</button>
-        </div>
+        <div class="card task"><div class="task-logo">✈️</div><div class="task-info"><b>Подписаться на канал Telegram</b><span class="reward">💎 +5 GRAM</span></div><button class="btn task-action">Выполнить</button></div>
+        <div class="card task"><div class="task-logo red">▶</div><div class="task-info"><b>Посмотреть видео на YouTube</b><span class="reward">💎 +10 GRAM</span></div><button class="btn task-action">Выполнить</button></div>
+        <div class="card task"><div class="task-logo">✈️</div><div class="task-info"><b>Пригласить друга</b><span class="reward">💎 +25 GRAM</span></div><button class="btn task-action">Выполнить</button></div>
+        <div class="card task"><div class="task-logo">✈️</div><div class="task-info"><b>Оставить отзыв в Telegram</b><span class="reward">💎 +15 GRAM</span></div><button class="btn task-action">Выполнить</button></div>
+        <div class="card task"><div class="task-logo green">✓</div><div class="task-info"><b>Новые задания</b><span class="reward">Скоро появятся</span></div><button class="btn secondary">Soon</button></div>
       </div>
     </section>
 
     <section id="friends" class="app-screen" hidden>
-      <div class="card">
-        <h2>Приглашайте друзей</h2>
-        <p class="hint">Реферал становится активным только после того, как пригласит своего первого пользователя.</p>
-        <div class="ref-box">Персональная ссылка появится после подключения backend.</div>
-        <button id="shareReferral" class="btn full">Поделиться ссылкой</button>
+      <header class="top"><button class="icon-btn back">‹</button><div class="title">Друзья</div><button class="icon-btn bell">♧<i class="dot"></i></button></header>
+      <h3 class="section-title" style="text-align:center">Ваша реферальная программа</h3>
+      <div class="card ref-summary">
+        <div><small>Всего приглашено</small><strong>0</strong></div>
+        <div><small>Активных</small><strong>0</strong></div>
+        <div class="circle"><span>0%</span></div>
       </div>
-      <div class="section-title"><h2>Реферальная статистика</h2></div>
-      <div class="stats">
-        <div class="card stat"><strong>0</strong><span>Всего приглашено</span></div>
-        <div class="card stat"><strong>0</strong><span>Активных</span></div>
+      <div class="card progress-card">
+        <div class="progress-top"><span>До следующего уровня</span><span>0 / 10</span></div>
+        <div class="track"><i style="width:0"></i></div>
       </div>
-      <div class="section-title"><h2>Как это работает</h2></div>
-      <div class="rule">
-        Приглашённый пользователь сначала ожидает активации.
-        Когда он приглашает своего первого человека, он становится активным рефералом,
-        а вам начисляется награда.
-      </div>
+      <h3 class="section-title">Ваша ссылка</h3>
+      <div class="link-box"><input value="Ссылка появится после backend" readonly><button class="copy">▣</button></div>
+      <button id="shareBtn" class="btn" style="width:100%">Поделиться ссылкой</button>
+      <h3 class="section-title">Как стать активным</h3>
+      <div class="card progress-card label">Ваш реферал станет активным только после того, как пригласит своего первого пользователя.</div>
     </section>
 
     <section id="withdraw" class="app-screen" hidden>
-      <div class="card soon-page">
-        <div class="soon-icon">💳</div>
-        <h2>Вывод средств</h2>
-        <p class="hint">Подключение TON-кошелька и вывод появятся позже.</p>
-        <span class="soon">Soon</span>
-      </div>
+      <header class="top"><button class="icon-btn back">‹</button><div class="title">Вывод средств</div><span></span></header>
+      <div class="card withdraw-head"><div class="label">Баланс для вывода</div><div class="balance" style="font-size:28px;margin-bottom:2px">0.00 <small>GRAM</small></div><div class="label">Минимум для вывода: будет установлен позже</div></div>
+      <label class="field-label">Адрес кошелька TON</label><input class="field" placeholder="UQ... ваш TON адрес">
+      <label class="field-label">Сумма вывода</label>
+      <div class="amounts"><button>100</button><button class="active">200</button><button>500</button><button>Все</button></div>
+      <button id="withdrawBtn" class="btn" style="width:100%">▣ Вывести</button>
+      <p class="label" style="text-align:center;margin:12px">Выплаты станут доступны после подключения backend.</p>
+      <h3 class="section-title">История выводов</h3>
+      <div class="card history-list"><div class="label" style="padding:16px;text-align:center">История пока пуста</div></div>
     </section>
 
     <section id="profile" class="app-screen" hidden>
-      <div class="card profile-header">
-        <div id="profileAvatar" class="profile-avatar">GT</div>
-        <h2 id="profileName">Пользователь Telegram</h2>
-        <p id="profileId" class="hint">Telegram ID будет получен внутри Mini App</p>
+      <header class="top"><button class="icon-btn back">‹</button><div class="title">Профиль</div><button class="icon-btn open" data-open="settings">⚙</button></header>
+      <div class="profile"><div id="profileAvatar" class="avatar">GT</div><h2 id="profileName">Пользователь Telegram</h2><p id="profileId">Telegram ID</p><span class="level-badge">💎 Уровень — Soon</span></div>
+      <div class="profile-stats"><div class="card stat"><strong>0</strong><span>Заданий</span></div><div class="card stat"><strong>0</strong><span>Рефералов</span></div><div class="card stat"><strong>0</strong><span>Заработано</span></div></div>
+      <div class="card menu-list">
+        <button class="menu-item open" data-open="levels"><span>♙</span><span>Мой уровень</span><small>Soon ›</small></button>
+        <button class="menu-item open" data-open="settings"><span>⚙</span><span>Настройки</span><small>›</small></button>
+        <button class="menu-item open" data-open="history"><span>▣</span><span>История операций</span><small>›</small></button>
+        <button id="supportBtn" class="menu-item"><span>◉</span><span>Поддержка</span><small>›</small></button>
+        <button id="aboutBtn" class="menu-item"><span>◌</span><span>О приложении</span><small>›</small></button>
       </div>
-      <div class="section-title"><h2>Разделы профиля</h2></div>
-      <div class="menu-list">
-        <button class="menu-item open-subpage" data-subpage="achievements">
-          <span class="icon">🏆</span><span class="content"><strong>Достижения</strong><small>Система достижений</small></span><span class="soon">Soon</span>
-        </button>
-        <button class="menu-item open-subpage" data-subpage="levels">
-          <span class="icon">💎</span><span class="content"><strong>Уровень</strong><small>Bronze, Silver, Gold, Diamond</small></span><span class="soon">Soon</span>
-        </button>
-        <button class="menu-item open-subpage" data-subpage="settings">
-          <span class="icon">⚙️</span><span class="content"><strong>Настройки</strong><small>Поддержка и информация</small></span><span>›</span>
-        </button>
-      </div>
-      <p class="hint" style="text-align:center">GRAM Tasks · Version 1.0</p>
     </section>
 
-    <section id="achievements" class="app-screen" hidden>
-      <div class="card soon-page"><div class="soon-icon">🏆</div><h2>Достижения</h2><p class="hint">Появятся позже.</p><span class="soon">Soon</span><button class="btn secondary full back-profile">Назад</button></div>
+    <section id="history" class="app-screen" hidden>
+      <header class="top"><button class="icon-btn back">‹</button><div class="title">История операций</div><span></span></header>
+      <div class="tabs"><button class="tab active">Все</button><button class="tab">Начисления</button><button class="tab">Выводы</button></div>
+      <div class="card history-list"><div class="label" style="padding:18px;text-align:center">История появится после подключения базы данных.</div></div>
     </section>
 
     <section id="levels" class="app-screen" hidden>
-      <div class="card soon-page"><div class="soon-icon">💎</div><h2>Уровни</h2><p class="hint">Bronze, Silver, Gold и Diamond появятся позже.</p><span class="soon">Soon</span><button class="btn secondary full back-profile">Назад</button></div>
+      <header class="top"><button class="icon-btn back">‹</button><div class="title">Мой уровень</div><span></span></header>
+      <div class="card level-hero"><div class="diamond">◇</div><h2>Soon</h2><p class="label">Система уровней появится позже</p><div class="track"><i style="width:0"></i></div></div>
+      <div class="levels">
+        <div class="card level">🥉<br>Bronze</div><div class="card level active">💎<br>Silver</div><div class="card level">🥇<br>Gold</div><div class="card level">🔒<br>Diamond</div>
+      </div>
+      <div class="card benefits"><div><b>✓</b> Повышенный бонус за задания</div><div><b>✓</b> Увеличенные награды за рефералов</div></div>
     </section>
 
     <section id="settings" class="app-screen" hidden>
-      <div class="card"><h2>Настройки</h2><button id="supportButton" class="btn secondary full">❓ Поддержка</button><button id="aboutButton" class="btn secondary full">ℹ️ О проекте</button></div>
-      <button class="btn secondary full back-profile">Назад</button>
+      <header class="top"><button class="icon-btn back">‹</button><div class="title">Настройки</div><span></span></header>
+      <div class="card menu-list"><button class="menu-item"><span>🇷🇺</span><span>Язык</span><small>Русский ›</small></button><button id="settingsSupport" class="menu-item"><span>◉</span><span>Поддержка</span><small>›</small></button><button id="settingsAbout" class="menu-item"><span>◌</span><span>О проекте</span><small>›</small></button></div>
     </section>
   </section>
 </main>
 
-<nav id="navigation" class="nav hidden">
-  <button class="active" data-section="home"><span>🏠</span>Главная</button>
-  <button data-section="tasks"><span>🎯</span>Задания</button>
-  <button data-section="friends"><span>👥</span>Друзья</button>
-  <button data-section="withdraw"><span>💳</span>Вывод</button>
-  <button data-section="profile"><span>👤</span>Профиль</button>
+<nav id="nav" class="nav hidden">
+  <button class="active" data-open="home"><span>⌂</span>Главная</button>
+  <button data-open="tasks"><span>▱</span>Задания</button>
+  <button data-open="friends"><span>♧</span>Друзья</button>
+  <button data-open="withdraw"><span>▣</span>Вывод</button>
+  <button data-open="profile"><span>♙</span>Профиль</button>
 </nav>
+<div id="toast" class="toast"></div>
 
 <script>
-  const tg = window.Telegram?.WebApp;
-  if (tg) {
-    tg.ready();
-    tg.expand();
-    tg.setHeaderColor("#07101f");
-    tg.setBackgroundColor("#07101f");
-  }
-
-  const subscription = document.getElementById("subscription");
-  const application = document.getElementById("application");
-  const navigation = document.getElementById("navigation");
-  const subscriptionMessage = document.getElementById("subscriptionMessage");
-
-  document.getElementById("joinChannel").addEventListener("click", () => {
-    const url = "https://t.me/Gram_taskss";
-    if (tg) tg.openTelegramLink(url);
-    else window.open(url, "_blank");
-  });
-
-  document.getElementById("checkSubscription").addEventListener("click", () => {
-    subscriptionMessage.textContent = "Проверяем подписку...";
-    setTimeout(() => {
-      subscriptionMessage.textContent = "Доступ разрешён.";
-      subscription.classList.remove("active");
-      application.classList.add("active");
-      navigation.classList.remove("hidden");
-    }, 700);
-  });
-
-  function openSection(id) {
-    document.querySelectorAll(".app-screen").forEach(section => section.hidden = true);
-    document.getElementById(id).removeAttribute("hidden");
-    document.querySelectorAll(".nav button").forEach(button => {
-      button.classList.toggle("active", button.dataset.section === id);
-    });
+  const tg=window.Telegram?.WebApp;
+  if(tg){tg.ready();tg.expand();tg.setHeaderColor("#030814");tg.setBackgroundColor("#030814")}
+  const sub=document.getElementById("subscription"),app=document.getElementById("application"),nav=document.getElementById("nav"),toast=document.getElementById("toast");
+  function showToast(text){toast.textContent=text;toast.style.display="block";setTimeout(()=>toast.style.display="none",2200)}
+  function openPage(id){
+    document.querySelectorAll(".app-screen").forEach(s=>s.hidden=true);
+    document.getElementById(id).hidden=false;
+    document.querySelectorAll(".nav button").forEach(b=>b.classList.toggle("active",b.dataset.open===id));
     window.scrollTo({top:0,behavior:"smooth"});
   }
-
-  document.querySelectorAll(".nav button").forEach(button => {
-    button.addEventListener("click", () => openSection(button.dataset.section));
-  });
-
-  document.querySelectorAll(".open-section").forEach(button => {
-    button.addEventListener("click", () => openSection(button.dataset.section));
-  });
-
-  document.querySelectorAll(".open-subpage").forEach(button => {
-    button.addEventListener("click", () => openSection(button.dataset.subpage));
-  });
-
-  document.querySelectorAll(".back-profile").forEach(button => {
-    button.addEventListener("click", () => openSection("profile"));
-  });
-
-  document.querySelectorAll(".demo-task").forEach(button => {
-    button.addEventListener("click", () => {
-      const text = "Задание станет рабочим после подключения backend.";
-      if (tg) tg.showAlert(text); else alert(text);
-    });
-  });
-
-  document.getElementById("shareReferral").addEventListener("click", () => {
-    const url = "https://t.me/share/url?url=" + encodeURIComponent("https://t.me/") + "&text=" + encodeURIComponent("Присоединяйся к GRAM Tasks!");
-    if (tg) tg.openTelegramLink(url); else window.open(url, "_blank");
-  });
-
-  document.getElementById("supportButton").addEventListener("click", () => {
-    const text = "Контакт поддержки будет добавлен позже.";
-    if (tg) tg.showAlert(text); else alert(text);
-  });
-
-  document.getElementById("aboutButton").addEventListener("click", () => {
-    const text = "GRAM Tasks — Mini App для заданий и активных рефералов.";
-    if (tg) tg.showAlert(text); else alert(text);
-  });
-
-  const user = tg?.initDataUnsafe?.user;
-  if (user) {
-    const name = [user.first_name, user.last_name].filter(Boolean).join(" ");
-    const initials = ((user.first_name?.[0] || "") + (user.last_name?.[0] || "")).toUpperCase() || "GT";
-    document.getElementById("welcomeText").textContent = name ? "Привет, " + name : "Добро пожаловать";
-    document.getElementById("avatar").textContent = initials;
-    document.getElementById("profileAvatar").textContent = initials;
-    document.getElementById("profileName").textContent = name || "Пользователь Telegram";
-    document.getElementById("profileId").textContent = "Telegram ID: " + user.id;
+  document.querySelectorAll("[data-open]").forEach(b=>b.addEventListener("click",()=>openPage(b.dataset.open)));
+  document.querySelectorAll(".back").forEach(b=>b.addEventListener("click",()=>openPage("home")));
+  document.getElementById("joinChannel").addEventListener("click",()=>tg?tg.openTelegramLink("https://t.me/Gram_taskss"):window.open("https://t.me/Gram_taskss","_blank"));
+  document.getElementById("checkSubscription").addEventListener("click",()=>{sub.classList.remove("active");app.classList.add("active");nav.classList.remove("hidden");showToast("Подписка подтверждена")});
+  document.querySelectorAll(".task-action").forEach(b=>b.addEventListener("click",()=>showToast("Задание станет рабочим после подключения backend")));
+  document.getElementById("withdrawBtn").addEventListener("click",()=>showToast("Вывод станет доступен после подключения backend"));
+  document.getElementById("shareBtn").addEventListener("click",()=>showToast("Реферальная ссылка появится после подключения backend"));
+  document.querySelector(".copy").addEventListener("click",()=>showToast("Ссылка пока недоступна"));
+  ["supportBtn","settingsSupport"].forEach(id=>document.getElementById(id).addEventListener("click",()=>showToast("Контакт поддержки добавим позже")));
+  ["aboutBtn","settingsAbout"].forEach(id=>document.getElementById(id).addEventListener("click",()=>showToast("GRAM Tasks — задания, рефералы и награды")));
+  const user=tg?.initDataUnsafe?.user;
+  if(user){
+    const name=[user.first_name,user.last_name].filter(Boolean).join(" ");
+    const initials=((user.first_name?.[0]||"")+(user.last_name?.[0]||"")).toUpperCase()||"GT";
+    document.getElementById("hello").textContent="Привет, "+(name||user.first_name||"Пользователь")+" 👋";
+    document.getElementById("topAvatar").textContent=initials;
+    document.getElementById("profileAvatar").textContent=initials;
+    document.getElementById("profileName").textContent=name||"Пользователь Telegram";
+    document.getElementById("profileId").textContent="ID: "+user.id;
   }
 </script>
 </body>
-</html>
+          </html>
