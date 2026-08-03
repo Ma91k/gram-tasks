@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#030814">
   <title>GRAM Tasks</title>
-  <!-- GRAM_TASKS_FRONTEND_VERSION: tasks-v2 -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
     :root{
@@ -216,7 +215,7 @@
       </div>
       <div class="stats4">
         <div class="card stat"><strong id="completedTasksValue">0</strong><span>Заданий выполнено</span></div>
-        <div class="card stat"><strong>0</strong><span>Активных рефералов</span></div>
+        <div class="card stat"><strong id="activeReferralsValue">0</strong><span>Активных рефералов</span></div>
         <div class="card stat"><strong id="totalEarnedValue">0</strong><span>Всего заработано</span></div>
         <div class="card stat"><strong>Soon</strong><span>Ваш уровень</span></div>
       </div>
@@ -235,8 +234,8 @@
 
     <section id="tasks" class="app-screen" hidden>
       <header class="top"><button class="icon-btn back">‹</button><div class="title">Задания</div><button class="icon-btn bell">♧<i class="dot"></i></button></header>
-      <div class="tabs"><button class="tab active">Все</button></div>
-      <div id="tasksTaskList" class="task-list">
+      <div class="tabs"><button class="tab active">Все</button><button class="tab">Подписки</button><button class="tab">Соц. сети</button><button class="tab">Бонусы</button></div>
+      <div id="homeTaskList" class="task-list">
         <div class="card task"><div class="task-logo">✈️</div><div class="task-info"><b>Подписаться на канал Telegram</b><span class="reward">💎 +5 GRAM</span></div><button class="btn task-action">Выполнить</button></div>
         <div class="card task"><div class="task-logo red">▶</div><div class="task-info"><b>Посмотреть видео на YouTube</b><span class="reward">💎 +10 GRAM</span></div><button class="btn task-action">Выполнить</button></div>
         <div class="card task"><div class="task-logo">✈️</div><div class="task-info"><b>Пригласить друга</b><span class="reward">💎 +25 GRAM</span></div><button class="btn task-action">Выполнить</button></div>
@@ -248,20 +247,21 @@
     <section id="friends" class="app-screen" hidden>
       <header class="top"><button class="icon-btn back">‹</button><div class="title">Друзья</div><button class="icon-btn bell">♧<i class="dot"></i></button></header>
       <h3 class="section-title" style="text-align:center">Ваша реферальная программа</h3>
+      <div class="card progress-card label" id="referralRewardText">За каждого активного реферала вы получите 0.2 GRAM.</div>
       <div class="card ref-summary">
-        <div><small>Всего приглашено</small><strong>0</strong></div>
-        <div><small>Активных</small><strong>0</strong></div>
-        <div class="circle"><span>0%</span></div>
+        <div><small>Всего приглашено</small><strong id="totalReferralsValue">0</strong></div>
+        <div><small>Активных</small><strong id="friendsActiveReferralsValue">0</strong></div>
+        <div class="circle"><span id="referralPercentValue">0%</span></div>
       </div>
       <div class="card progress-card">
-        <div class="progress-top"><span>До следующего уровня</span><span>0 / 10</span></div>
-        <div class="track"><i style="width:0"></i></div>
+        <div class="progress-top"><span>До следующего уровня</span><span id="referralProgressText">0 / 10</span></div>
+        <div class="track"><i id="referralProgressBar" style="width:0"></i></div>
       </div>
       <h3 class="section-title">Ваша ссылка</h3>
-      <div class="link-box"><input value="Ссылка появится после backend" readonly><button class="copy">▣</button></div>
+      <div class="link-box"><input id="referralLinkInput" value="Загрузка ссылки..." readonly><button class="copy">▣</button></div>
       <button id="shareBtn" class="btn" style="width:100%">Поделиться ссылкой</button>
       <h3 class="section-title">Как стать активным</h3>
-      <div class="card progress-card label">Ваш реферал станет активным только после того, как пригласит своего первого пользователя.</div>
+      <div class="card progress-card label">Реферал станет активным после запуска бота и подтверждения подписки на официальный канал.</div>
     </section>
 
     <section id="withdraw" class="app-screen" hidden>
@@ -279,7 +279,7 @@
     <section id="profile" class="app-screen" hidden>
       <header class="top"><button class="icon-btn back">‹</button><div class="title">Профиль</div><button class="icon-btn open" data-open="settings">⚙</button></header>
       <div class="profile"><div id="profileAvatar" class="avatar">GT</div><h2 id="profileName">Пользователь Telegram</h2><p id="profileId">Telegram ID</p><span class="level-badge">💎 Уровень — Soon</span></div>
-      <div class="profile-stats"><div class="card stat"><strong>0</strong><span>Заданий</span></div><div class="card stat"><strong>0</strong><span>Рефералов</span></div><div class="card stat"><strong>0</strong><span>Заработано</span></div></div>
+      <div class="profile-stats"><div class="card stat"><strong id="profileTasksValue">0</strong><span>Заданий</span></div><div class="card stat"><strong id="profileReferralsValue">0</strong><span>Рефералов</span></div><div class="card stat"><strong id="profileEarnedValue">0</strong><span>Заработано</span></div></div>
       <div class="card menu-list">
         <button class="menu-item open" data-open="levels"><span>♙</span><span>Мой уровень</span><small>Soon ›</small></button>
         <button class="menu-item open" data-open="settings"><span>⚙</span><span>Настройки</span><small>›</small></button>
@@ -428,9 +428,66 @@
     loadAppData();
     setTimeout(silentSubscriptionCheck, 300);
   }
+  document.querySelectorAll(".task-action").forEach(b=>b.addEventListener("click",()=>showToast("Задание станет рабочим после подключения backend")));
   document.getElementById("withdrawBtn").addEventListener("click",()=>showToast("Вывод станет доступен после подключения backend"));
-  document.getElementById("shareBtn").addEventListener("click",()=>showToast("Реферальная ссылка появится после подключения backend"));
-  document.querySelector(".copy").addEventListener("click",()=>showToast("Ссылка пока недоступна"));
+  let currentReferralLink = "";
+
+  function copyReferralLink() {
+    if (!currentReferralLink) {
+      showToast("Реферальная ссылка пока недоступна");
+      return;
+    }
+
+    const input = document.getElementById("referralLinkInput");
+    input.focus();
+    input.select();
+    input.setSelectionRange(0, input.value.length);
+
+    const fallbackCopy = () => {
+      try {
+        document.execCommand("copy");
+        showToast("Ссылка скопирована");
+      } catch (error) {
+        showToast("Не удалось скопировать ссылку");
+      }
+    };
+
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(currentReferralLink)
+        .then(() => showToast("Ссылка скопирована"))
+        .catch(fallbackCopy);
+    } else {
+      fallbackCopy();
+    }
+  }
+
+  function shareReferralLink() {
+    if (!currentReferralLink) {
+      showToast("Реферальная ссылка пока недоступна");
+      return;
+    }
+
+    const shareUrl =
+      "https://t.me/share/url?url=" +
+      encodeURIComponent(currentReferralLink) +
+      "&text=" +
+      encodeURIComponent("Присоединяйся к GRAM Tasks!");
+
+    if (tg) {
+      tg.openTelegramLink(shareUrl);
+    } else {
+      window.open(shareUrl, "_blank");
+    }
+  }
+
+  document.getElementById("shareBtn").addEventListener(
+    "click",
+    shareReferralLink
+  );
+  document.querySelector(".copy").addEventListener(
+    "click",
+    copyReferralLink
+  );
   ["supportBtn","settingsSupport"].forEach(id=>document.getElementById(id).addEventListener("click",()=>showToast("Контакт поддержки добавим позже")));
   ["aboutBtn","settingsAbout"].forEach(id=>document.getElementById(id).addEventListener("click",()=>showToast("GRAM Tasks — задания, рефералы и награды")));
 
@@ -444,10 +501,84 @@
     const balance = document.getElementById("balanceValue");
     const completed = document.getElementById("completedTasksValue");
     const total = document.getElementById("totalEarnedValue");
+    const activeReferrals = document.getElementById("activeReferralsValue");
+    const totalReferrals = document.getElementById("totalReferralsValue");
+    const friendsActive = document.getElementById(
+      "friendsActiveReferralsValue"
+    );
+    const referralPercent = document.getElementById(
+      "referralPercentValue"
+    );
+    const referralProgressText = document.getElementById(
+      "referralProgressText"
+    );
+    const referralProgressBar = document.getElementById(
+      "referralProgressBar"
+    );
+    const referralLinkInput = document.getElementById(
+      "referralLinkInput"
+    );
+    const referralRewardText = document.getElementById(
+      "referralRewardText"
+    );
+    const profileTasks = document.getElementById("profileTasksValue");
+    const profileReferrals = document.getElementById(
+      "profileReferralsValue"
+    );
+    const profileEarned = document.getElementById("profileEarnedValue");
+
+    const referralsTotal = Number(userData.total_referrals || 0);
+    const referralsActive = Number(userData.active_referrals || 0);
+    const activationPercent = referralsTotal > 0
+      ? Math.round((referralsActive / referralsTotal) * 100)
+      : 0;
+    const nextGoal = Math.max(
+      10,
+      Math.ceil((referralsTotal + 1) / 10) * 10
+    );
+    const previousGoal = Math.max(0, nextGoal - 10);
+    const progressWithinLevel = referralsTotal - previousGoal;
+    const progressPercent = Math.min(
+      100,
+      Math.max(0, (progressWithinLevel / 10) * 100)
+    );
+
+    currentReferralLink = userData.referral_link || "";
 
     if (balance) balance.textContent = formatReward(userData.balance);
     if (completed) completed.textContent = userData.completed_tasks;
     if (total) total.textContent = formatReward(userData.total_earned);
+    if (activeReferrals) activeReferrals.textContent = referralsActive;
+    if (totalReferrals) totalReferrals.textContent = referralsTotal;
+    if (friendsActive) friendsActive.textContent = referralsActive;
+    if (referralPercent) {
+      referralPercent.textContent = `${activationPercent}%`;
+    }
+    if (referralProgressText) {
+      referralProgressText.textContent =
+        `${referralsTotal} / ${nextGoal}`;
+    }
+    if (referralProgressBar) {
+      referralProgressBar.style.width = `${progressPercent}%`;
+    }
+    if (referralLinkInput) {
+      referralLinkInput.value =
+        currentReferralLink || "Ссылка временно недоступна";
+    }
+    if (referralRewardText) {
+      const reward = Number(userData.referral_reward || 0.2);
+      referralRewardText.textContent =
+        `За каждого активного реферала вы получите ${formatReward(reward)} GRAM.`;
+    }
+    if (profileTasks) {
+      profileTasks.textContent = userData.completed_tasks;
+    }
+    if (profileReferrals) {
+      profileReferrals.textContent = referralsActive;
+    }
+    if (profileEarned) {
+      profileEarned.textContent = formatReward(userData.total_earned);
+    }
   }
 
   async function apiPost(path) {
@@ -555,7 +686,14 @@
       const data = await apiPost("/api/tasks");
       const allTasks = data.tasks || [];
 
+      const homeList = document.getElementById("homeTaskList");
       const tasksList = document.getElementById("tasksTaskList");
+
+      if (homeList) {
+        homeList.replaceChildren(
+          ...allTasks.slice(0, 2).map(makeTaskElement)
+        );
+      }
 
       if (tasksList) {
         tasksList.replaceChildren(
@@ -593,4 +731,4 @@
   }
 </script>
 </body>
-  </html>
+</html>
