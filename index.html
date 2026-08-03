@@ -304,6 +304,17 @@
       background:linear-gradient(135deg,#137dff,#7941ff);
       font-weight:900;letter-spacing:1.5px;margin-bottom:9px
     }
+    .leaderboard-period{
+      margin:8px 2px 12px;color:#8fa2bd;font-size:12px;line-height:1.45
+    }
+    .leaderboard-rewards{padding:8px 14px}
+    .leaderboard-reward-row{
+      display:flex;align-items:center;justify-content:space-between;
+      gap:12px;padding:10px 0;border-bottom:1px solid #102646
+    }
+    .leaderboard-reward-row:last-child{border-bottom:0}
+    .leaderboard-reward-place{font-weight:800}
+    .leaderboard-reward-amount{color:var(--cyan);font-weight:800}
   
     .language-modal{
       position:fixed;inset:0;z-index:1000;display:grid;place-items:center;
@@ -420,26 +431,24 @@
         <div class="card referral-empty">У вас пока нет приглашённых друзей.</div>
       </div>
 
-      <h3 class="section-title">Лидерборд</h3>
+      <h3 class="section-title">Недельный лидерборд</h3>
       <div class="card leaderboard-position">
         <span class="label">Ваше место</span>
         <strong id="leaderboardPositionValue">—</strong>
       </div>
-      <div class="label" style="margin:10px 2px">
-        Топ-50 по количеству активных рефералов
+      <div id="leaderboardDescription" class="leaderboard-period">
+        Рейтинг по активным рефералам за текущую неделю.
       </div>
+      <div id="leaderboardWeekText" class="leaderboard-period"></div>
       <div id="leaderboardList" class="leaderboard-list">
         <div class="card referral-empty">
           В лидерборде пока нет участников.
         </div>
       </div>
 
-      <h3 class="section-title">Награды</h3>
-      <div class="card soon-reward">
-        <div class="soon-badge">SOON</div>
-        <div class="label">
-          Награды получат участники топ-10. Размеры наград — SOON.
-        </div>
+      <h3 class="section-title">Награды недели</h3>
+      <div id="leaderboardRewardsList" class="card leaderboard-rewards">
+        <div class="referral-empty">Награды пока не настроены.</div>
       </div>
     </section>
 
@@ -587,11 +596,14 @@
     "Приглашённые друзья":"Invited friends",
     "У вас пока нет приглашённых друзей.":"You have no invited friends yet.",
     "Лидерборд":"Leaderboard",
+    "Недельный лидерборд":"Weekly leaderboard",
     "Ваше место":"Your position",
-    "Топ-50 по количеству активных рефералов":"Top 50 by active referrals",
+    "Рейтинг по активным рефералам за текущую неделю.":"Ranking by active referrals for the current week.",
     "В лидерборде пока нет участников.":"There are no leaderboard participants yet.",
     "Награды":"Rewards",
-    "Награды получат участники топ-10. Размеры наград — SOON.":"Top 10 participants will receive rewards. Reward amounts — SOON.",
+    "Награды недели":"Weekly rewards",
+    "Награды пока не настроены.":"Rewards are not configured yet.",
+    "Награды пока не настроены администратором.":"Rewards have not been configured by the administrator yet.",
     "Вывод средств":"Withdraw funds",
     "Баланс для вывода":"Available balance",
     "Минимальный вывод: 5 GRAM":"Minimum withdrawal: 5 GRAM",
@@ -1143,6 +1155,71 @@
     return `#${place}`;
   }
 
+  function formatLeaderboardDate(timestamp) {
+    if (!timestamp) return "";
+    return new Date(Number(timestamp) * 1000).toLocaleString(
+      currentLanguage === "en" ? "en-GB" : "ru-RU",
+      {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      }
+    );
+  }
+
+  function renderLeaderboardRewards(rewards, placesCount, weekEnd) {
+    const list = document.getElementById("leaderboardRewardsList");
+    const description = document.getElementById("leaderboardDescription");
+    const weekText = document.getElementById("leaderboardWeekText");
+    const safePlaces = Math.max(1, Number(placesCount || 10));
+    const values = Array.isArray(rewards) ? rewards.slice(0, safePlaces) : [];
+
+    if (description) {
+      description.textContent = currentLanguage === "en"
+        ? `Top ${safePlaces} by active referrals during the current week.`
+        : `Топ-${safePlaces} по активным рефералам за текущую неделю.`;
+    }
+
+    if (weekText) {
+      const endText = formatLeaderboardDate(weekEnd);
+      weekText.textContent = currentLanguage === "en"
+        ? `The leaderboard resets automatically: ${endText}`
+        : `Автоматическое обновление лидерборда: ${endText}`;
+    }
+
+    if (!list) return;
+
+    if (!values.length || !values.some(value => Number(value) > 0)) {
+      const empty = document.createElement("div");
+      empty.className = "referral-empty";
+      empty.textContent = currentLanguage === "en"
+        ? "Rewards have not been configured by the administrator yet."
+        : "Награды пока не настроены администратором.";
+      list.replaceChildren(empty);
+      return;
+    }
+
+    const rows = values.map((reward, index) => {
+      const row = document.createElement("div");
+      row.className = "leaderboard-reward-row";
+
+      const place = document.createElement("span");
+      place.className = "leaderboard-reward-place";
+      place.textContent = `${getLeaderboardMedal(index + 1)} ${index + 1}`;
+
+      const amount = document.createElement("span");
+      amount.className = "leaderboard-reward-amount";
+      amount.textContent = `${formatReward(reward)} GRAM`;
+
+      row.append(place, amount);
+      return row;
+    });
+
+    list.replaceChildren(...rows);
+  }
+
   function makeLeaderboardElement(entry) {
     const item = document.createElement("div");
     item.className =
@@ -1343,6 +1420,11 @@
     renderLeaderboard(
       userData.leaderboard || [],
       userData.leaderboard_position
+    );
+    renderLeaderboardRewards(
+      userData.leaderboard_rewards || [],
+      userData.leaderboard_places || 10,
+      userData.leaderboard_week_end
     );
   }
 
