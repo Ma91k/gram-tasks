@@ -22,7 +22,17 @@
       --yellow:#ffcd4a;
     }
     *{box-sizing:border-box}
-    html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:Arial,sans-serif}
+    html,body{
+      margin:0;
+      width:100%;
+      max-width:100%;
+      min-height:100%;
+      overflow-x:hidden;
+      overscroll-behavior-x:none;
+      background:var(--bg);
+      color:var(--text);
+      font-family:Arial,sans-serif
+    }
     body{
       background:
         radial-gradient(circle at 10% -5%,rgba(0,173,255,.12),transparent 32%),
@@ -32,8 +42,29 @@
     }
     button,input{font:inherit}
     button{cursor:pointer}
-    .app{width:min(100%,520px);margin:0 auto;padding:14px 16px 20px}
-    .screen{display:none}.screen.active{display:block}
+    .app{
+      width:100%;
+      max-width:520px;
+      min-width:0;
+      margin:0 auto;
+      padding:14px 16px 20px;
+      overflow-x:hidden;
+      touch-action:pan-y
+    }
+    .screen{
+      display:none;
+      width:100%;
+      max-width:100%;
+      min-width:0;
+      overflow-x:hidden
+    }
+    .screen.active{display:block}
+    .app-screen{
+      width:100%;
+      max-width:100%;
+      min-width:0;
+      overflow-x:hidden
+    }
     .app-screen[hidden]{display:none!important}
     .top{
       height:50px;display:grid;grid-template-columns:40px 1fr 40px;
@@ -117,25 +148,62 @@
     .task-logo.red{background:#ff263f}.task-logo.green{background:#05bd75}
     .task-info{flex:1}.task-info b{display:block;margin-bottom:4px}.reward{color:#24e4ff;font-size:12px;font-weight:700}
     .task .btn{padding:10px 13px;font-size:12px}
-    .ref-summary{padding:16px;display:grid;grid-template-columns:1fr 1fr 76px;gap:10px;align-items:center}
-    .ref-summary strong{font-size:26px}.ref-summary small{display:block;color:#93a5be;margin-bottom:5px}
-    .circle{
-      width:70px;height:70px;border-radius:50%;display:grid;place-items:center;
-      background:conic-gradient(var(--cyan) 0 67%,#27344c 67% 100%);
-      position:relative;font-weight:700
+    .ref-summary{
+      padding:16px;
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:14px 12px;
+      align-items:center;
+      min-width:0;
+      max-width:100%
     }
-    .circle:after{
-      content:"";position:absolute;inset:8px;border-radius:50%;background:#09172b
+    .ref-summary strong{
+      display:block;
+      font-size:26px;
+      margin-top:5px
     }
-    .circle span{position:relative;z-index:1}
+    .ref-summary small{
+      display:block;
+      color:#93a5be
+    }
+    .ref-link-inline{
+      grid-column:1 / -1;
+      min-width:0;
+      padding-top:14px;
+      border-top:1px solid #17345e
+    }
+    .ref-link-inline-label{
+      display:block;
+      margin-bottom:8px;
+      color:#a8bad5;
+      font-size:13px;
+      font-weight:700
+    }
     .progress-card{padding:14px;margin-top:11px}
     .progress-top{display:flex;justify-content:space-between;font-size:12px;color:#a2b1c8;margin-bottom:8px}
     .track{height:8px;background:#182842;border-radius:999px;overflow:hidden}
     .track i{display:block;height:100%;width:40%;background:linear-gradient(90deg,#148cff,#21e1f5)}
-    .link-box{display:flex;gap:8px;margin:10px 0}
+    .link-box{
+      display:flex;
+      width:100%;
+      max-width:100%;
+      min-width:0;
+      gap:8px;
+      margin:10px 0;
+      overflow:hidden
+    }
     .link-box input{
-      flex:1;min-width:0;background:#07152b;border:1px solid var(--line);
-      border-radius:10px;color:#aabbd3;padding:12px
+      flex:1 1 0;
+      width:0;
+      max-width:100%;
+      min-width:0;
+      background:#07152b;
+      border:1px solid var(--line);
+      border-radius:10px;
+      color:#aabbd3;
+      padding:12px;
+      overflow:hidden;
+      text-overflow:ellipsis
     }
     .copy{width:43px;border:1px solid var(--line);background:#07152b;color:#fff;border-radius:10px}
     .leader-list{padding:8px 14px}
@@ -185,10 +253,31 @@
     }
     .field-label{display:block;margin:14px 0 7px;font-size:13px}
     .field{
-      width:100%;background:#07152b;border:1px solid var(--line);border-radius:10px;
-      color:#fff;padding:13px
+      width:100%;
+      max-width:100%;
+      min-width:0;
+      background:#07152b;
+      border:1px solid var(--line);
+      border-radius:10px;
+      color:#fff;
+      padding:13px;
+      overflow:hidden;
+      text-overflow:ellipsis
     }
-    .amounts{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0}
+    .card,
+    .referral-item,
+    .leaderboard-list,
+    .leaderboard-item,
+    .withdraw-head,
+    .withdraw-item,
+    .history-list,
+    .history-item,
+    .progress-card,
+    .channel-card{
+      max-width:100%;
+      min-width:0
+    }
+    .amounts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));width:100%;max-width:100%;min-width:0;gap:8px;margin:10px 0}
     .amounts button{background:#08182e;border:1px solid #234369;color:#fff;border-radius:9px;padding:10px}
     .amounts button.active{border-color:#1e80ff;background:#0b2e68}
     .history-list{padding:9px 14px}
@@ -224,7 +313,7 @@
     .channel-row{display:flex;align-items:center;gap:12px}.channel-logo{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:#149bea}
     .nav{
       position:fixed;left:50%;bottom:0;transform:translateX(-50%);
-      width:min(100%,520px);display:grid;grid-template-columns:repeat(5,1fr);
+      width:100%;max-width:520px;min-width:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));
       background:rgba(3,8,20,.97);border-top:1px solid #102746;
       padding:7px 6px calc(7px + env(safe-area-inset-bottom));z-index:20
     }
@@ -452,17 +541,29 @@
       <h3 class="section-title" style="text-align:center">Ваша реферальная программа</h3>
       <div class="card progress-card label" id="referralRewardText">За каждого активного реферала вы получите 0.2 GRAM.</div>
       <div class="card ref-summary">
-        <div><small>Всего приглашено</small><strong id="totalReferralsValue">0</strong></div>
-        <div><small>Активных</small><strong id="friendsActiveReferralsValue">0</strong></div>
-        <div class="circle"><span id="referralPercentValue">0%</span></div>
+        <div>
+          <small>Всего приглашено</small>
+          <strong id="totalReferralsValue">0</strong>
+        </div>
+        <div>
+          <small>Активных</small>
+          <strong id="friendsActiveReferralsValue">0</strong>
+        </div>
+        <div class="ref-link-inline">
+          <span class="ref-link-inline-label">Ваша ссылка</span>
+          <div class="link-box">
+            <input id="referralLinkInput" value="Загрузка ссылки..." readonly>
+            <button class="copy">▣</button>
+          </div>
+        </div>
       </div>
+      <button id="shareBtn" class="btn" style="width:100%;margin-top:10px">
+        Поделиться ссылкой
+      </button>
       <div class="card progress-card">
         <div class="progress-top"><span>До следующего уровня</span><span id="referralProgressText">0 / 10</span></div>
         <div class="track"><i id="referralProgressBar" style="width:0"></i></div>
       </div>
-      <h3 class="section-title">Ваша ссылка</h3>
-      <div class="link-box"><input id="referralLinkInput" value="Загрузка ссылки..." readonly><button class="copy">▣</button></div>
-      <button id="shareBtn" class="btn" style="width:100%">Поделиться ссылкой</button>
       <h3 class="section-title">Как стать активным</h3>
       <div class="card progress-card label">Реферал станет активным после подтверждения подписки на официальный канал и приглашения хотя бы одного нового пользователя по своей ссылке.</div>
       <h3 class="section-title">Приглашённые друзья</h3>
@@ -904,7 +1005,10 @@
     document.querySelectorAll(".nav button").forEach(b=>b.classList.toggle("active",b.dataset.open===id));
     if(id==="history") loadOperationHistory();
     if(id==="withdraw") loadWithdrawals();
-    window.scrollTo({top:0,behavior:"smooth"});
+
+    document.documentElement.scrollLeft = 0;
+    document.body.scrollLeft = 0;
+    window.scrollTo({top:0,left:0,behavior:"auto"});
   }
   document.querySelectorAll("[data-open]").forEach(b=>b.addEventListener("click",()=>openPage(b.dataset.open)));
   document.querySelectorAll(".back").forEach(b=>b.addEventListener("click",()=>openPage(b.dataset.back || "home")));
