@@ -144,6 +144,18 @@
     .leader .info{flex:1}.leader .info small{display:block;color:#8da0bb}.earn{color:#18e9e5;font-size:12px}
     .withdraw-head{padding:16px}
     .withdraw-history{display:grid;gap:10px}
+    .account-warning{
+      padding:13px 14px;margin:10px 0;border-radius:16px;
+      font-size:12px;line-height:1.45
+    }
+    .account-warning.review{
+      color:#ffd56a;background:rgba(255,205,74,.1);
+      border:1px solid rgba(255,205,74,.35)
+    }
+    .account-warning.blocked{
+      color:#ff91a2;background:rgba(255,90,120,.1);
+      border:1px solid rgba(255,90,120,.35)
+    }
     .withdraw-item{
       padding:13px;display:flex;align-items:center;gap:10px
     }
@@ -400,6 +412,7 @@
         </div>
         <div id="minWithdrawalText" class="label">Минимальный вывод: 5 GRAM</div>
       </div>
+      <div id="accountWarning" class="account-warning review" hidden></div>
       <label class="field-label">Адрес кошелька TON</label>
       <input id="withdrawWalletInput" class="field" placeholder="UQ... ваш TON адрес" autocomplete="off">
       <label class="field-label">Сумма вывода</label>
@@ -576,6 +589,7 @@
   let currentReferralLink = "";
   let currentUserBalance = 0;
   let currentMinWithdrawal = 5;
+  let currentAccountStatus = "normal";
 
   function copyReferralLink() {
     if (!currentReferralLink) {
@@ -842,6 +856,10 @@
     const withdrawAmountInput = document.getElementById(
       "withdrawAmountInput"
     );
+    const accountWarning = document.getElementById(
+      "accountWarning"
+    );
+    const withdrawButton = document.getElementById("withdrawBtn");
 
     const referralsTotal = Number(userData.total_referrals || 0);
     const referralsActive = Number(userData.active_referrals || 0);
@@ -862,6 +880,32 @@
     currentReferralLink = userData.referral_link || "";
     currentUserBalance = Number(userData.balance || 0);
     currentMinWithdrawal = Number(userData.min_withdrawal || 5);
+    currentAccountStatus = userData.account_status || "normal";
+
+    if (accountWarning) {
+      if (currentAccountStatus === "review") {
+        accountWarning.hidden = false;
+        accountWarning.className = "account-warning review";
+        accountWarning.textContent =
+          "⚠️ Вывод временно приостановлен: аккаунт находится на проверке. Причина: " +
+          (userData.account_status_message || "подозрительная активность");
+      } else if (currentAccountStatus === "blocked") {
+        accountWarning.hidden = false;
+        accountWarning.className = "account-warning blocked";
+        accountWarning.textContent =
+          "⛔ Аккаунт заблокирован. Получение наград и вывод средств недоступны.";
+      } else {
+        accountWarning.hidden = true;
+        accountWarning.textContent = "";
+      }
+    }
+    if (withdrawButton) {
+      const locked = currentAccountStatus !== "normal";
+      withdrawButton.disabled = locked;
+      withdrawButton.textContent = locked
+        ? "Вывод временно недоступен"
+        : "▣ Создать заявку";
+    }
 
     if (balance) balance.textContent = formatReward(userData.balance);
     if (withdrawBalance) {
@@ -1074,6 +1118,15 @@
         "withdrawAmountInput"
       );
 
+      if (currentAccountStatus !== "normal") {
+        showToast(
+          currentAccountStatus === "blocked"
+            ? "Аккаунт заблокирован"
+            : "Вывод временно приостановлен на время проверки"
+        );
+        return;
+      }
+
       const wallet = walletInput.value.trim();
       const amount = Number(
         String(amountInput.value).replace(",", ".")
@@ -1128,8 +1181,11 @@
         console.error(error);
         showToast(error.message || "Не удалось создать заявку");
       } finally {
-        button.disabled = false;
-        button.textContent = originalText;
+        const locked = currentAccountStatus !== "normal";
+        button.disabled = locked;
+        button.textContent = locked
+          ? "Вывод временно недоступен"
+          : originalText;
       }
     }
   );
