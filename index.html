@@ -294,7 +294,7 @@
       <div class="link-box"><input id="referralLinkInput" value="Загрузка ссылки..." readonly><button class="copy">▣</button></div>
       <button id="shareBtn" class="btn" style="width:100%">Поделиться ссылкой</button>
       <h3 class="section-title">Как стать активным</h3>
-      <div class="card progress-card label">Реферал станет активным после запуска бота и подтверждения подписки на официальный канал.</div>
+      <div class="card progress-card label">Реферал станет активным после подтверждения подписки на официальный канал и приглашения хотя бы одного нового пользователя по своей ссылке.</div>
       <h3 class="section-title">Приглашённые друзья</h3>
       <div id="referralList" class="referral-list">
         <div class="card referral-empty">У вас пока нет приглашённых друзей.</div>
@@ -586,6 +586,14 @@
     const invitedDate = formatReferralDate(referral.invited_at);
     if (invitedDate) {
       detailParts.push(`приглашён ${invitedDate}`);
+    }
+
+    if (referral.active) {
+      detailParts.push("условия выполнены");
+    } else if (!referral.subscription_verified) {
+      detailParts.push("не подтвердил подписку");
+    } else if (Number(referral.own_referrals_count || 0) < 1) {
+      detailParts.push("ещё не пригласил друга");
     }
 
     details.textContent =
