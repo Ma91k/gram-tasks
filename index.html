@@ -219,6 +219,46 @@
     .referral-empty{
       padding:16px;text-align:center;color:var(--muted)
     }
+    .leaderboard-list{display:grid;gap:9px}
+    .leaderboard-item{
+      padding:12px;display:flex;align-items:center;gap:10px
+    }
+    .leaderboard-item.current{
+      border-color:rgba(30,208,255,.75);
+      box-shadow:0 0 0 1px rgba(30,208,255,.15) inset
+    }
+    .leaderboard-place{
+      width:34px;flex:0 0 34px;text-align:center;
+      font-size:18px;font-weight:800
+    }
+    .leaderboard-info{flex:1;min-width:0}
+    .leaderboard-info b{
+      display:block;overflow:hidden;text-overflow:ellipsis;
+      white-space:nowrap
+    }
+    .leaderboard-info small{
+      display:block;color:var(--muted);margin-top:3px;
+      overflow:hidden;text-overflow:ellipsis;white-space:nowrap
+    }
+    .leaderboard-score{
+      flex:0 0 auto;text-align:right;font-weight:800;color:#20d7ff
+    }
+    .leaderboard-score small{
+      display:block;color:var(--muted);font-size:10px;
+      font-weight:500;margin-top:2px
+    }
+    .leaderboard-position{
+      padding:12px 14px;display:flex;justify-content:space-between;
+      gap:12px;align-items:center
+    }
+    .soon-reward{
+      padding:18px;text-align:center
+    }
+    .soon-badge{
+      display:inline-block;padding:7px 14px;border-radius:999px;
+      background:linear-gradient(135deg,#137dff,#7941ff);
+      font-weight:900;letter-spacing:1.5px;margin-bottom:9px
+    }
   </style>
 </head>
 <body>
@@ -298,6 +338,28 @@
       <h3 class="section-title">Приглашённые друзья</h3>
       <div id="referralList" class="referral-list">
         <div class="card referral-empty">У вас пока нет приглашённых друзей.</div>
+      </div>
+
+      <h3 class="section-title">Лидерборд</h3>
+      <div class="card leaderboard-position">
+        <span class="label">Ваше место</span>
+        <strong id="leaderboardPositionValue">—</strong>
+      </div>
+      <div class="label" style="margin:10px 2px">
+        Топ-50 по количеству активных рефералов
+      </div>
+      <div id="leaderboardList" class="leaderboard-list">
+        <div class="card referral-empty">
+          В лидерборде пока нет участников.
+        </div>
+      </div>
+
+      <h3 class="section-title">Награды</h3>
+      <div class="card soon-reward">
+        <div class="soon-badge">SOON</div>
+        <div class="label">
+          Награды получат участники топ-10. Размеры наград — SOON.
+        </div>
       </div>
     </section>
 
@@ -627,6 +689,75 @@
     list.replaceChildren(...items.map(makeReferralElement));
   }
 
+  function getLeaderboardMedal(place) {
+    if (place === 1) return "🥇";
+    if (place === 2) return "🥈";
+    if (place === 3) return "🥉";
+    return `#${place}`;
+  }
+
+  function makeLeaderboardElement(entry) {
+    const item = document.createElement("div");
+    item.className =
+      `card leaderboard-item${entry.is_current_user ? " current" : ""}`;
+
+    const place = document.createElement("div");
+    place.className = "leaderboard-place";
+    place.textContent = getLeaderboardMedal(Number(entry.place));
+
+    const info = document.createElement("div");
+    info.className = "leaderboard-info";
+
+    const name = document.createElement("b");
+    name.textContent =
+      `${entry.name || "Пользователь Telegram"}${entry.is_current_user ? " · Вы" : ""}`;
+
+    const details = document.createElement("small");
+    details.textContent = entry.username
+      ? `@${entry.username}`
+      : `Всего приглашено: ${Number(entry.total_referrals || 0)}`;
+
+    const score = document.createElement("div");
+    score.className = "leaderboard-score";
+    score.textContent = Number(entry.active_referrals || 0);
+
+    const scoreLabel = document.createElement("small");
+    scoreLabel.textContent = "активных";
+
+    score.append(scoreLabel);
+    info.append(name, details);
+    item.append(place, info, score);
+
+    return item;
+  }
+
+  function renderLeaderboard(entries, userPosition) {
+    const list = document.getElementById("leaderboardList");
+    const position = document.getElementById(
+      "leaderboardPositionValue"
+    );
+
+    if (position) {
+      position.textContent = userPosition
+        ? `#${Number(userPosition)}`
+        : "Пока нет";
+    }
+
+    if (!list) return;
+
+    const items = Array.isArray(entries) ? entries : [];
+
+    if (!items.length) {
+      const empty = document.createElement("div");
+      empty.className = "card referral-empty";
+      empty.textContent = "В лидерборде пока нет участников.";
+      list.replaceChildren(empty);
+      return;
+    }
+
+    list.replaceChildren(...items.map(makeLeaderboardElement));
+  }
+
   function updateUserUi(userData) {
     const balance = document.getElementById("balanceValue");
     const completed = document.getElementById("completedTasksValue");
@@ -711,6 +842,10 @@
     }
 
     renderReferralList(userData.referrals || []);
+    renderLeaderboard(
+      userData.leaderboard || [],
+      userData.leaderboard_position
+    );
   }
 
   async function apiPost(path) {
