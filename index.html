@@ -304,6 +304,25 @@
       background:linear-gradient(135deg,#137dff,#7941ff);
       font-weight:900;letter-spacing:1.5px;margin-bottom:9px
     }
+  
+    .language-modal{
+      position:fixed;inset:0;z-index:1000;display:grid;place-items:center;
+      padding:20px;background:rgba(0,0,0,.72);backdrop-filter:blur(5px)
+    }
+    .language-modal[hidden]{display:none!important}
+    .language-dialog{width:min(100%,420px);padding:18px}
+    .language-dialog h3{margin:0 0 14px;text-align:center}
+    .language-choice{
+      width:100%;display:flex;align-items:center;gap:12px;padding:15px 12px;
+      border:0;border-bottom:1px solid rgba(255,255,255,.08);
+      background:transparent;color:var(--text);text-align:left
+    }
+    .language-choice:last-of-type{border-bottom:0}
+    .language-choice span:first-child{font-size:24px}
+    .language-choice b{flex:1}
+    .language-choice .check{color:var(--cyan);font-size:18px}
+    .language-close{width:100%;margin-top:12px}
+
   </style>
 </head>
 <body>
@@ -474,7 +493,7 @@
 
     <section id="settings" class="app-screen" hidden>
       <header class="top"><button class="icon-btn back">‹</button><div class="title">Настройки</div><span></span></header>
-      <div class="card menu-list"><button class="menu-item"><span>🇷🇺</span><span>Язык</span><small>Русский ›</small></button><button id="settingsSupport" class="menu-item"><span>◉</span><span>Поддержка</span><small>›</small></button><button id="settingsAbout" class="menu-item"><span>◌</span><span>О проекте</span><small>›</small></button></div>
+      <div class="card menu-list"><button id="languageBtn" class="menu-item"><span id="languageFlag">🇷🇺</span><span>Язык</span><small id="languageValue">Русский ›</small></button><button id="settingsSupport" class="menu-item"><span>◉</span><span>Поддержка</span><small>›</small></button><button id="settingsAbout" class="menu-item"><span>◌</span><span>О проекте</span><small>›</small></button></div>
     </section>
   </section>
 </main>
@@ -486,13 +505,277 @@
   <button data-open="withdraw"><span>▣</span>Вывод</button>
   <button data-open="profile"><span>♙</span>Профиль</button>
 </nav>
+
+<div id="languageModal" class="language-modal" hidden>
+  <div class="card language-dialog" role="dialog" aria-modal="true" aria-labelledby="languageModalTitle">
+    <h3 id="languageModalTitle">Выберите язык</h3>
+    <button class="language-choice" data-language="ru"><span>🇷🇺</span><b>Русский</b><span class="check" data-language-check="ru">✓</span></button>
+    <button class="language-choice" data-language="en"><span>🇬🇧</span><b>English</b><span class="check" data-language-check="en"></span></button>
+    <button id="languageClose" class="btn secondary language-close">Закрыть</button>
+  </div>
+</div>
+
 <div id="toast" class="toast"></div>
 
 <script>
   const tg=window.Telegram?.WebApp;
   if(tg){tg.ready();tg.expand();tg.setHeaderColor("#030814");tg.setBackgroundColor("#030814")}
   const sub=document.getElementById("subscription"),app=document.getElementById("application"),nav=document.getElementById("nav"),toast=document.getElementById("toast");
-  function showToast(text){toast.textContent=text;toast.style.display="block";setTimeout(()=>toast.style.display="none",2200)}
+  const LANGUAGE_KEY = "gram_tasks_language";
+  let currentLanguage = localStorage.getItem(LANGUAGE_KEY) === "en" ? "en" : "ru";
+
+  const UI_TRANSLATIONS = {
+    "Подпишитесь, чтобы продолжить":"Subscribe to continue",
+    "Вступите в официальный канал GRAM Tasks и подтвердите подписку.":"Join the official GRAM Tasks channel and confirm your subscription.",
+    "Официальный канал проекта":"Official project channel",
+    "Вступить в канал":"Join channel",
+    "Проверить подписку":"Check subscription",
+    "Главная":"Home",
+    "Привет! 👋":"Hello! 👋",
+    "Добро пожаловать в GRAM Tasks":"Welcome to GRAM Tasks",
+    "Ваш баланс":"Your balance",
+    "▣ История":"▣ History",
+    "▣ Вывести":"▣ Withdraw",
+    "Заданий выполнено":"Tasks completed",
+    "Активных рефералов":"Active referrals",
+    "Всего заработано":"Total earned",
+    "Ваш уровень":"Your level",
+    "Быстрые действия":"Quick actions",
+    "Задания":"Tasks",
+    "Друзья":"Friends",
+    "Пригласить":"Invite",
+    "Вывод":"Withdraw",
+    "Средства":"Funds",
+    "Профиль":"Profile",
+    "Настройки":"Settings",
+    "Новые задания":"New tasks",
+    "Следите за обновлениями и получайте больше GRAM.":"Follow updates and earn more GRAM.",
+    "Открыть задания":"Open tasks",
+    "Все":"All",
+    "Подписаться на канал Telegram":"Subscribe to Telegram channel",
+    "Подписаться на GRAM Tasks":"Subscribe to GRAM Tasks",
+    "Выполнить":"Complete",
+    "Посмотреть видео на YouTube":"Watch a YouTube video",
+    "Пригласить друга":"Invite a friend",
+    "Оставить отзыв в Telegram":"Leave a review on Telegram",
+    "Скоро появятся":"Coming soon",
+    "Ваша реферальная программа":"Your referral program",
+    "За каждого активного реферала вы получите 0.2 GRAM.":"You will receive 0.2 GRAM for each active referral.",
+    "Всего приглашено":"Total invited",
+    "Активных":"Active",
+    "До следующего уровня":"Until the next level",
+    "Ваша ссылка":"Your link",
+    "Поделиться ссылкой":"Share link",
+    "Как стать активным":"How to become active",
+    "Реферал станет активным после подтверждения подписки на официальный канал и приглашения хотя бы одного нового пользователя по своей ссылке.":"A referral becomes active after confirming the official channel subscription and inviting at least one new user with their own link.",
+    "Приглашённые друзья":"Invited friends",
+    "У вас пока нет приглашённых друзей.":"You have no invited friends yet.",
+    "Лидерборд":"Leaderboard",
+    "Ваше место":"Your position",
+    "Топ-50 по количеству активных рефералов":"Top 50 by active referrals",
+    "В лидерборде пока нет участников.":"There are no leaderboard participants yet.",
+    "Награды":"Rewards",
+    "Награды получат участники топ-10. Размеры наград — SOON.":"Top 10 participants will receive rewards. Reward amounts — SOON.",
+    "Вывод средств":"Withdraw funds",
+    "Баланс для вывода":"Available balance",
+    "Минимальный вывод: 5 GRAM":"Minimum withdrawal: 5 GRAM",
+    "Адрес кошелька TON":"TON wallet address",
+    "Сумма вывода":"Withdrawal amount",
+    "▣ Создать заявку":"▣ Create request",
+    "Минимальный вывод — 5 GRAM. Обработка заявки занимает до 72 часов. Можно создавать несколько заявок, если на балансе достаточно средств.":"Minimum withdrawal is 5 GRAM. Processing takes up to 72 hours. Multiple requests are allowed when the remaining balance is sufficient.",
+    "История выводов":"Withdrawal history",
+    "История пока пуста.":"History is empty.",
+    "Пользователь Telegram":"Telegram user",
+    "Telegram ID":"Telegram ID",
+    "💎 Уровень — Soon":"💎 Level — Soon",
+    "Заданий":"Tasks",
+    "Рефералов":"Referrals",
+    "Заработано":"Earned",
+    "Мой уровень":"My level",
+    "История операций":"Transaction history",
+    "Поддержка":"Support",
+    "О приложении":"About the app",
+    "Начисления":"Credits",
+    "Выводы":"Withdrawals",
+    "Загружаем историю...":"Loading history...",
+    "Система уровней появится позже":"The level system will be available later",
+    "Повышенный бонус за задания":"Increased task bonus",
+    "Увеличенные награды за рефералов":"Increased referral rewards",
+    "Язык":"Language",
+    "Русский ›":"Russian ›",
+    "О проекте":"About the project",
+    "Выберите язык":"Choose language",
+    "Закрыть":"Close",
+    "Проверяем...":"Checking...",
+    "Подписка подтверждена":"Subscription confirmed",
+    "Сначала подпишитесь на канал":"Subscribe to the channel first",
+    "Сервер временно недоступен":"Server is temporarily unavailable",
+    "Подписка на канал больше не активна":"The channel subscription is no longer active",
+    "Задание станет рабочим после подключения backend":"The task will work after backend connection",
+    "Реферальная ссылка пока недоступна":"The referral link is temporarily unavailable",
+    "Ссылка скопирована":"Link copied",
+    "Не удалось скопировать ссылку":"Could not copy the link",
+    "Присоединяйся к GRAM Tasks!":"Join GRAM Tasks!",
+    "GRAM Tasks — задания, рефералы и награды":"GRAM Tasks — tasks, referrals and rewards",
+    "условия выполнены":"requirements completed",
+    "не подтвердил подписку":"subscription not confirmed",
+    "ещё не пригласил друга":"has not invited a friend yet",
+    "Приглашённый пользователь":"Invited user",
+    "Активный":"Active",
+    "Неактивный":"Inactive",
+    "активных":"active",
+    "Пока нет":"Not ranked yet",
+    "подозрительная активность":"suspicious activity",
+    "⛔ Аккаунт заблокирован. Получение наград и вывод средств недоступны.":"⛔ Account blocked. Rewards and withdrawals are unavailable.",
+    "Вывод временно недоступен":"Withdrawal temporarily unavailable",
+    "Ссылка временно недоступна":"Link temporarily unavailable",
+    "Откройте приложение через Telegram":"Open the app through Telegram",
+    "Откройте Mini App через Telegram-бота":"Open the Mini App through the Telegram bot",
+    "Ошибка сервера":"Server error",
+    "Ошибка проверки подписки":"Subscription check error",
+    "На проверке":"Under review",
+    "Выплачено":"Paid",
+    "Отклонено":"Rejected",
+    "Начислено":"Credited",
+    "Возвращено":"Refunded",
+    "Готово":"Completed",
+    "Операция":"Transaction",
+    "История операций пока пуста.":"Transaction history is empty.",
+    "Начислений пока нет.":"No credits yet.",
+    "Операций вывода пока нет.":"No withdrawal transactions yet.",
+    "Не удалось загрузить историю. Попробуйте ещё раз.":"Could not load history. Try again.",
+    "Аккаунт заблокирован":"Account blocked",
+    "Вывод временно приостановлен на время проверки":"Withdrawals are paused while the account is under review",
+    "Введите адрес TON-кошелька":"Enter a TON wallet address",
+    "Введите сумму вывода":"Enter a withdrawal amount",
+    "Недостаточно средств на балансе":"Insufficient balance",
+    "Создаём заявку...":"Creating request...",
+    "Не удалось создать заявку":"Could not create request",
+    "Выполнено":"Completed",
+    "Открыть":"Open",
+    "Проверить":"Check",
+    "Не удалось загрузить задания":"Could not load tasks",
+    "Пользователь":"User"
+  };
+
+  function localizedText(value, language = currentLanguage) {
+    const source = String(value ?? "");
+    if (language !== "en") return source;
+
+    const leading = source.match(/^\s*/)?.[0] || "";
+    const trailing = source.match(/\s*$/)?.[0] || "";
+    const core = source.trim();
+    let result = UI_TRANSLATIONS[core];
+
+    if (!result) {
+      let match;
+      if ((match = core.match(/^Привет,\s*(.+)\s👋$/))) {
+        result = `Hello, ${match[1]} 👋`;
+      } else if ((match = core.match(/^приглашён\s+(.+)$/))) {
+        result = `invited ${match[1]}`;
+      } else if ((match = core.match(/^Всего приглашено:\s*(\d+)$/))) {
+        result = `Total invited: ${match[1]}`;
+      } else if ((match = core.match(/^Минимальный вывод:\s*(.+)\sGRAM$/))) {
+        result = `Minimum withdrawal: ${match[1]} GRAM`;
+      } else if ((match = core.match(/^За каждого активного реферала вы получите\s+(.+)\sGRAM\.$/))) {
+        result = `You will receive ${match[1]} GRAM for each active referral.`;
+      } else if ((match = core.match(/^Заявка #(\d+)$/))) {
+        result = `Request #${match[1]}`;
+      } else if ((match = core.match(/^Минимум —\s*(.+)\sGRAM$/))) {
+        result = `Minimum — ${match[1]} GRAM`;
+      } else if ((match = core.match(/^Заявка #(\d+) создана\. Срок — до 72 часов$/))) {
+        result = `Request #${match[1]} created. Processing takes up to 72 hours`;
+      } else if (core.startsWith("⚠️ Вывод временно приостановлен: аккаунт находится на проверке. Причина: ")) {
+        result = "⚠️ Withdrawals are paused: the account is under review. Reason: " +
+          core.slice("⚠️ Вывод временно приостановлен: аккаунт находится на проверке. Причина: ".length);
+      }
+
+      if (!result) result = core;
+    }
+
+    return leading + result + trailing;
+  }
+
+  function translateTextNodes(root = document.body) {
+    const walker = document.createTreeWalker(
+      root,
+      NodeFilter.SHOW_TEXT,
+      {
+        acceptNode(node) {
+          const parent = node.parentElement;
+          if (!parent || ["SCRIPT", "STYLE"].includes(parent.tagName)) {
+            return NodeFilter.FILTER_REJECT;
+          }
+          return node.nodeValue.trim()
+            ? NodeFilter.FILTER_ACCEPT
+            : NodeFilter.FILTER_REJECT;
+        }
+      }
+    );
+
+    const nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+
+    nodes.forEach(node => {
+      if (typeof node.__gramTasksRuText === "undefined") {
+        node.__gramTasksRuText = node.nodeValue;
+      }
+      node.nodeValue = currentLanguage === "en"
+        ? localizedText(node.__gramTasksRuText, "en")
+        : node.__gramTasksRuText;
+    });
+  }
+
+  function applyLanguage(language) {
+    currentLanguage = language === "en" ? "en" : "ru";
+    localStorage.setItem(LANGUAGE_KEY, currentLanguage);
+    document.documentElement.lang = currentLanguage;
+
+    translateTextNodes(document.body);
+
+    const languageFlag = document.getElementById("languageFlag");
+    const languageValue = document.getElementById("languageValue");
+    if (languageFlag) languageFlag.textContent = currentLanguage === "en" ? "🇬🇧" : "🇷🇺";
+    if (languageValue) languageValue.textContent = currentLanguage === "en" ? "English ›" : "Русский ›";
+
+    const walletInput = document.getElementById("withdrawWalletInput");
+    const amountInput = document.getElementById("withdrawAmountInput");
+    const referralInput = document.getElementById("referralLinkInput");
+    if (walletInput) walletInput.placeholder = currentLanguage === "en" ? "UQ... your TON address" : "UQ... ваш TON адрес";
+    if (amountInput) amountInput.placeholder = currentLanguage === "en" ? "Enter amount" : "Введите сумму";
+    if (referralInput && !currentReferralLink) {
+      referralInput.value = currentLanguage === "en" ? "Loading link..." : "Загрузка ссылки...";
+    }
+
+    document.querySelectorAll("[data-language-check]").forEach(check => {
+      check.textContent = check.dataset.languageCheck === currentLanguage ? "✓" : "";
+    });
+
+    if (typeof renderOperationHistory === "function") {
+      renderOperationHistory(currentHistoryFilter);
+    }
+  }
+
+  const languageObserver = new MutationObserver(mutations => {
+    if (currentLanguage !== "en") return;
+    mutations.forEach(mutation => {
+      mutation.addedNodes.forEach(node => {
+        if (node.nodeType === Node.TEXT_NODE) {
+          if (node.nodeValue.trim()) {
+            if (typeof node.__gramTasksRuText === "undefined") {
+              node.__gramTasksRuText = node.nodeValue;
+            }
+            node.nodeValue = localizedText(node.__gramTasksRuText, "en");
+          }
+        } else if (node.nodeType === Node.ELEMENT_NODE) {
+          translateTextNodes(node);
+        }
+      });
+    });
+  });
+  languageObserver.observe(document.body, {childList:true, subtree:true});
+
+  function showToast(text){toast.textContent=localizedText(text);toast.style.display="block";setTimeout(()=>toast.style.display="none",2200)}
   function openPage(id){
     document.querySelectorAll(".app-screen").forEach(s=>s.hidden=true);
     document.getElementById(id).hidden=false;
@@ -502,7 +785,7 @@
     window.scrollTo({top:0,behavior:"smooth"});
   }
   document.querySelectorAll("[data-open]").forEach(b=>b.addEventListener("click",()=>openPage(b.dataset.open)));
-  document.querySelectorAll(".back").forEach(b=>b.addEventListener("click",()=>openPage("home")));
+  document.querySelectorAll(".back").forEach(b=>b.addEventListener("click",()=>openPage(b.dataset.back || "home")));
   document.getElementById("joinChannel").addEventListener("click",()=>tg?tg.openTelegramLink("https://t.me/Gram_taskss"):window.open("https://t.me/Gram_taskss","_blank"));
   const API_URL = "https://gram-tasks-backend.onrender.com";
   const SUBSCRIPTION_CACHE_KEY = "gram_tasks_subscription_ok";
@@ -643,7 +926,7 @@
       "https://t.me/share/url?url=" +
       encodeURIComponent(currentReferralLink) +
       "&text=" +
-      encodeURIComponent("Присоединяйся к GRAM Tasks!");
+      encodeURIComponent(currentLanguage === "en" ? "Join GRAM Tasks!" : "Присоединяйся к GRAM Tasks!");
 
     if (tg) {
       tg.openTelegramLink(shareUrl);
@@ -660,11 +943,40 @@
     "click",
     copyReferralLink
   );
-  ["supportBtn","settingsSupport"].forEach(id=>document.getElementById(id).addEventListener("click",()=>showToast("Контакт поддержки добавим позже")));
+  function openSupportChat() {
+    const supportUrl = "https://t.me/Gram_tasks_manager";
+    if (tg) {
+      tg.openTelegramLink(supportUrl);
+    } else {
+      window.open(supportUrl, "_blank");
+    }
+  }
+  ["supportBtn","settingsSupport"].forEach(id => {
+    const button = document.getElementById(id);
+    if (button) button.addEventListener("click", openSupportChat);
+  });
   ["aboutBtn","settingsAbout"].forEach(id=>document.getElementById(id).addEventListener("click",()=>showToast("GRAM Tasks — задания, рефералы и награды")));
 
+  const languageModal = document.getElementById("languageModal");
+  document.getElementById("languageBtn").addEventListener("click", () => {
+    languageModal.hidden = false;
+  });
+  document.getElementById("languageClose").addEventListener("click", () => {
+    languageModal.hidden = true;
+  });
+  languageModal.addEventListener("click", event => {
+    if (event.target === languageModal) languageModal.hidden = true;
+  });
+  document.querySelectorAll("[data-language]").forEach(button => {
+    button.addEventListener("click", () => {
+      applyLanguage(button.dataset.language);
+      languageModal.hidden = true;
+      showToast(currentLanguage === "en" ? "Language changed to English" : "Язык изменён на русский");
+    });
+  });
+
   function formatReward(value) {
-    return Number(value).toLocaleString("ru-RU", {
+    return Number(value).toLocaleString(currentLanguage === "en" ? "en-US" : "ru-RU", {
       maximumFractionDigits: 2
     });
   }
@@ -688,7 +1000,7 @@
     if (!timestamp) return "";
 
     return new Date(Number(timestamp) * 1000).toLocaleDateString(
-      "ru-RU",
+      currentLanguage === "en" ? "en-US" : "ru-RU",
       {
         day: "2-digit",
         month: "2-digit",
@@ -999,7 +1311,7 @@
     if (!timestamp) return "";
 
     return new Date(Number(timestamp) * 1000).toLocaleString(
-      "ru-RU",
+      currentLanguage === "en" ? "en-US" : "ru-RU",
       {
         day: "2-digit",
         month: "2-digit",
@@ -1459,6 +1771,8 @@
     document.getElementById("profileName").textContent=name||"Пользователь Telegram";
     document.getElementById("profileId").textContent="ID: "+user.id;
   }
+
+  applyLanguage(currentLanguage);
 </script>
 </body>
 </html>
