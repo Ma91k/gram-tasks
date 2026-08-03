@@ -143,6 +143,34 @@
     .leader:last-child{border-bottom:0}.leader .pic{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:#173a65}
     .leader .info{flex:1}.leader .info small{display:block;color:#8da0bb}.earn{color:#18e9e5;font-size:12px}
     .withdraw-head{padding:16px}
+    .withdraw-history{display:grid;gap:10px}
+    .withdraw-item{
+      padding:13px;display:flex;align-items:center;gap:10px
+    }
+    .withdraw-icon{
+      width:40px;height:40px;border-radius:12px;display:grid;
+      place-items:center;flex:0 0 40px;background:rgba(30,208,255,.1)
+    }
+    .withdraw-info{flex:1;min-width:0}
+    .withdraw-info b{display:block}
+    .withdraw-info small{
+      display:block;color:var(--muted);margin-top:4px;
+      overflow:hidden;text-overflow:ellipsis;white-space:nowrap
+    }
+    .withdraw-side{text-align:right;flex:0 0 auto}
+    .withdraw-status{
+      display:inline-block;margin-top:4px;padding:4px 7px;
+      border-radius:999px;font-size:10px;font-weight:700
+    }
+    .withdraw-status.pending{
+      color:var(--yellow);background:rgba(255,205,74,.1)
+    }
+    .withdraw-status.paid{
+      color:var(--green);background:rgba(37,233,140,.1)
+    }
+    .withdraw-status.rejected{
+      color:#ff8295;background:rgba(255,90,120,.1)
+    }
     .field-label{display:block;margin:14px 0 7px;font-size:13px}
     .field{
       width:100%;background:#07152b;border:1px solid var(--line);border-radius:10px;
@@ -365,14 +393,31 @@
 
     <section id="withdraw" class="app-screen" hidden>
       <header class="top"><button class="icon-btn back">‹</button><div class="title">Вывод средств</div><span></span></header>
-      <div class="card withdraw-head"><div class="label">Баланс для вывода</div><div class="balance" style="font-size:28px;margin-bottom:2px">0.00 <small>GRAM</small></div><div class="label">Минимум для вывода: будет установлен позже</div></div>
-      <label class="field-label">Адрес кошелька TON</label><input class="field" placeholder="UQ... ваш TON адрес">
+      <div class="card withdraw-head">
+        <div class="label">Баланс для вывода</div>
+        <div class="balance" style="font-size:28px;margin-bottom:2px">
+          <span id="withdrawBalanceValue">0.00</span> <small>GRAM</small>
+        </div>
+        <div id="minWithdrawalText" class="label">Минимальный вывод: 5 GRAM</div>
+      </div>
+      <label class="field-label">Адрес кошелька TON</label>
+      <input id="withdrawWalletInput" class="field" placeholder="UQ... ваш TON адрес" autocomplete="off">
       <label class="field-label">Сумма вывода</label>
-      <div class="amounts"><button>100</button><button class="active">200</button><button>500</button><button>Все</button></div>
-      <button id="withdrawBtn" class="btn" style="width:100%">▣ Вывести</button>
-      <p class="label" style="text-align:center;margin:12px">Выплаты станут доступны после подключения backend.</p>
+      <input id="withdrawAmountInput" class="field" type="number" min="1" step="0.01" inputmode="decimal" placeholder="Введите сумму">
+      <div class="amounts">
+        <button data-withdraw-amount="5">5</button>
+        <button data-withdraw-amount="10">10</button>
+        <button data-withdraw-amount="25">25</button>
+        <button data-withdraw-all="1">Все</button>
+      </div>
+      <button id="withdrawBtn" class="btn" style="width:100%">▣ Создать заявку</button>
+      <p class="label" style="text-align:center;margin:12px">
+        Минимальный вывод — 5 GRAM. Обработка заявки занимает до 72 часов. Можно создавать несколько заявок, если на балансе достаточно средств.
+      </p>
       <h3 class="section-title">История выводов</h3>
-      <div class="card history-list"><div class="label" style="padding:16px;text-align:center">История пока пуста</div></div>
+      <div id="withdrawHistoryList" class="withdraw-history">
+        <div class="card referral-empty">История пока пуста.</div>
+      </div>
     </section>
 
     <section id="profile" class="app-screen" hidden>
@@ -528,8 +573,9 @@
     setTimeout(silentSubscriptionCheck, 300);
   }
   document.querySelectorAll(".task-action").forEach(b=>b.addEventListener("click",()=>showToast("Задание станет рабочим после подключения backend")));
-  document.getElementById("withdrawBtn").addEventListener("click",()=>showToast("Вывод станет доступен после подключения backend"));
   let currentReferralLink = "";
+  let currentUserBalance = 0;
+  let currentMinWithdrawal = 5;
 
   function copyReferralLink() {
     if (!currentReferralLink) {
@@ -787,6 +833,15 @@
       "profileReferralsValue"
     );
     const profileEarned = document.getElementById("profileEarnedValue");
+    const withdrawBalance = document.getElementById(
+      "withdrawBalanceValue"
+    );
+    const minWithdrawalText = document.getElementById(
+      "minWithdrawalText"
+    );
+    const withdrawAmountInput = document.getElementById(
+      "withdrawAmountInput"
+    );
 
     const referralsTotal = Number(userData.total_referrals || 0);
     const referralsActive = Number(userData.active_referrals || 0);
@@ -805,8 +860,20 @@
     );
 
     currentReferralLink = userData.referral_link || "";
+    currentUserBalance = Number(userData.balance || 0);
+    currentMinWithdrawal = Number(userData.min_withdrawal || 5);
 
     if (balance) balance.textContent = formatReward(userData.balance);
+    if (withdrawBalance) {
+      withdrawBalance.textContent = formatReward(currentUserBalance);
+    }
+    if (minWithdrawalText) {
+      minWithdrawalText.textContent =
+        `Минимальный вывод: ${formatReward(currentMinWithdrawal)} GRAM`;
+    }
+    if (withdrawAmountInput) {
+      withdrawAmountInput.min = String(currentMinWithdrawal);
+    }
     if (completed) completed.textContent = userData.completed_tasks;
     if (total) total.textContent = formatReward(userData.total_earned);
     if (activeReferrals) activeReferrals.textContent = referralsActive;
@@ -848,7 +915,7 @@
     );
   }
 
-  async function apiPost(path) {
+  async function apiPost(path, payload = {}) {
     if (!tg || !tg.initData) {
       throw new Error("Откройте приложение через Telegram");
     }
@@ -856,7 +923,10 @@
     const response = await fetch(`${API_URL}${path}`, {
       method: "POST",
       headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({init_data: tg.initData})
+      body: JSON.stringify({
+        init_data: tg.initData,
+        ...payload
+      })
     });
 
     const data = await response.json();
@@ -866,6 +936,210 @@
     }
 
     return data;
+  }
+
+  function formatWithdrawalDate(timestamp) {
+    if (!timestamp) return "";
+
+    return new Date(Number(timestamp) * 1000).toLocaleString(
+      "ru-RU",
+      {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      }
+    );
+  }
+
+  function withdrawalStatus(status) {
+    return {
+      pending: {
+        text: "На проверке",
+        className: "pending",
+        icon: "⏳"
+      },
+      paid: {
+        text: "Выплачено",
+        className: "paid",
+        icon: "✅"
+      },
+      rejected: {
+        text: "Отклонено",
+        className: "rejected",
+        icon: "❌"
+      }
+    }[status] || {
+      text: status,
+      className: "pending",
+      icon: "▣"
+    };
+  }
+
+  function shortWallet(wallet) {
+    const value = String(wallet || "");
+    if (value.length <= 18) return value;
+    return `${value.slice(0, 9)}…${value.slice(-7)}`;
+  }
+
+  function makeWithdrawalElement(withdrawal) {
+    const state = withdrawalStatus(withdrawal.status);
+
+    const item = document.createElement("div");
+    item.className = "card withdraw-item";
+
+    const icon = document.createElement("div");
+    icon.className = "withdraw-icon";
+    icon.textContent = state.icon;
+
+    const info = document.createElement("div");
+    info.className = "withdraw-info";
+
+    const title = document.createElement("b");
+    title.textContent = `Заявка #${withdrawal.id}`;
+
+    const details = document.createElement("small");
+    details.textContent =
+      `${shortWallet(withdrawal.wallet)} · ${formatWithdrawalDate(withdrawal.created_at)}`;
+
+    const side = document.createElement("div");
+    side.className = "withdraw-side";
+
+    const amount = document.createElement("b");
+    amount.textContent = `${formatReward(withdrawal.amount)} GRAM`;
+
+    const status = document.createElement("span");
+    status.className = `withdraw-status ${state.className}`;
+    status.textContent = state.text;
+
+    info.append(title, details);
+    side.append(amount, status);
+    item.append(icon, info, side);
+
+    return item;
+  }
+
+  function renderWithdrawals(withdrawals) {
+    const list = document.getElementById("withdrawHistoryList");
+    if (!list) return;
+
+    const items = Array.isArray(withdrawals) ? withdrawals : [];
+
+    if (!items.length) {
+      const empty = document.createElement("div");
+      empty.className = "card referral-empty";
+      empty.textContent = "История пока пуста.";
+      list.replaceChildren(empty);
+      return;
+    }
+
+    list.replaceChildren(...items.map(makeWithdrawalElement));
+  }
+
+  async function loadWithdrawals() {
+    try {
+      const data = await apiPost("/api/withdrawals");
+      renderWithdrawals(data.withdrawals || []);
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  document.querySelectorAll("[data-withdraw-amount]").forEach(
+    button => button.addEventListener("click", () => {
+      document.getElementById("withdrawAmountInput").value =
+        button.dataset.withdrawAmount;
+    })
+  );
+
+  document.querySelector("[data-withdraw-all]").addEventListener(
+    "click",
+    () => {
+      document.getElementById("withdrawAmountInput").value =
+        currentUserBalance > 0
+          ? Number(currentUserBalance.toFixed(2))
+          : "";
+    }
+  );
+
+  document.getElementById("withdrawBtn").addEventListener(
+    "click",
+    async () => {
+      const button = document.getElementById("withdrawBtn");
+      const walletInput = document.getElementById(
+        "withdrawWalletInput"
+      );
+      const amountInput = document.getElementById(
+        "withdrawAmountInput"
+      );
+
+      const wallet = walletInput.value.trim();
+      const amount = Number(
+        String(amountInput.value).replace(",", ".")
+      );
+
+      if (!wallet) {
+        showToast("Введите адрес TON-кошелька");
+        return;
+      }
+
+      if (!Number.isFinite(amount) || amount <= 0) {
+        showToast("Введите сумму вывода");
+        return;
+      }
+
+      if (amount < currentMinWithdrawal) {
+        showToast(
+          `Минимум — ${formatReward(currentMinWithdrawal)} GRAM`
+        );
+        return;
+      }
+
+      if (amount > currentUserBalance) {
+        showToast("Недостаточно средств на балансе");
+        return;
+      }
+
+      const originalText = button.textContent;
+      button.disabled = true;
+      button.textContent = "Создаём заявку...";
+
+      try {
+        const data = await apiPost(
+          "/api/withdrawals/create",
+          {
+            wallet,
+            amount
+          }
+        );
+
+        localStorage.setItem(
+          "gram_tasks_ton_wallet",
+          wallet
+        );
+        amountInput.value = "";
+        updateUserUi(data.user);
+        await loadWithdrawals();
+        showToast(
+          `Заявка #${data.withdrawal.id} создана. Срок — до 72 часов`
+        );
+      } catch (error) {
+        console.error(error);
+        showToast(error.message || "Не удалось создать заявку");
+      } finally {
+        button.disabled = false;
+        button.textContent = originalText;
+      }
+    }
+  );
+
+  const savedTonWallet = localStorage.getItem(
+    "gram_tasks_ton_wallet"
+  );
+  if (savedTonWallet) {
+    document.getElementById("withdrawWalletInput").value =
+      savedTonWallet;
   }
 
   function openTaskTarget(task) {
@@ -983,7 +1257,11 @@
   }
 
   async function loadAppData() {
-    await Promise.all([loadUserData(), loadTasks()]);
+    await Promise.all([
+      loadUserData(),
+      loadTasks(),
+      loadWithdrawals()
+    ]);
   }
 
   const user=tg?.initDataUnsafe?.user;
