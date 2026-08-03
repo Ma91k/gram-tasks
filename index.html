@@ -186,6 +186,39 @@
     .nav button{border:0;background:transparent;color:#7587a5;padding:5px 2px;font-size:10px}
     .nav button span{display:block;font-size:20px;margin-bottom:4px}.nav button.active{color:#14b8ff}
     .toast{position:fixed;left:50%;bottom:95px;transform:translateX(-50%);background:#0c203d;border:1px solid #285684;border-radius:12px;padding:11px 15px;display:none;z-index:50}
+    .referral-list{display:grid;gap:10px}
+    .referral-item{
+      padding:13px;display:flex;align-items:center;gap:11px
+    }
+    .referral-avatar{
+      width:42px;height:42px;border-radius:50%;display:grid;
+      place-items:center;flex:0 0 42px;font-weight:700;
+      background:linear-gradient(135deg,#1279ff,#7042ff)
+    }
+    .referral-person{flex:1;min-width:0}
+    .referral-person b{
+      display:block;overflow:hidden;text-overflow:ellipsis;
+      white-space:nowrap
+    }
+    .referral-person small{
+      display:block;color:var(--muted);margin-top:4px;
+      overflow:hidden;text-overflow:ellipsis;white-space:nowrap
+    }
+    .referral-status{
+      flex:0 0 auto;padding:6px 9px;border-radius:999px;
+      font-size:11px;font-weight:700
+    }
+    .referral-status.active{
+      color:var(--green);background:rgba(37,233,140,.12);
+      border:1px solid rgba(37,233,140,.35)
+    }
+    .referral-status.inactive{
+      color:var(--yellow);background:rgba(255,205,74,.10);
+      border:1px solid rgba(255,205,74,.30)
+    }
+    .referral-empty{
+      padding:16px;text-align:center;color:var(--muted)
+    }
   </style>
 </head>
 <body>
@@ -262,6 +295,10 @@
       <button id="shareBtn" class="btn" style="width:100%">Поделиться ссылкой</button>
       <h3 class="section-title">Как стать активным</h3>
       <div class="card progress-card label">Реферал станет активным после запуска бота и подтверждения подписки на официальный канал.</div>
+      <h3 class="section-title">Приглашённые друзья</h3>
+      <div id="referralList" class="referral-list">
+        <div class="card referral-empty">У вас пока нет приглашённых друзей.</div>
+      </div>
     </section>
 
     <section id="withdraw" class="app-screen" hidden>
@@ -497,6 +534,91 @@
     });
   }
 
+  function getReferralInitials(name) {
+    const parts = String(name || "")
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+
+    const initials = parts
+      .slice(0, 2)
+      .map(part => part[0])
+      .join("")
+      .toUpperCase();
+
+    return initials || "👤";
+  }
+
+  function formatReferralDate(timestamp) {
+    if (!timestamp) return "";
+
+    return new Date(Number(timestamp) * 1000).toLocaleDateString(
+      "ru-RU",
+      {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric"
+      }
+    );
+  }
+
+  function makeReferralElement(referral) {
+    const item = document.createElement("div");
+    item.className = "card referral-item";
+
+    const avatar = document.createElement("div");
+    avatar.className = "referral-avatar";
+    avatar.textContent = getReferralInitials(referral.name);
+
+    const person = document.createElement("div");
+    person.className = "referral-person";
+
+    const name = document.createElement("b");
+    name.textContent = referral.name || "Пользователь Telegram";
+
+    const details = document.createElement("small");
+    const detailParts = [];
+
+    if (referral.username) {
+      detailParts.push(`@${referral.username}`);
+    }
+
+    const invitedDate = formatReferralDate(referral.invited_at);
+    if (invitedDate) {
+      detailParts.push(`приглашён ${invitedDate}`);
+    }
+
+    details.textContent =
+      detailParts.join(" · ") || "Приглашённый пользователь";
+
+    const status = document.createElement("span");
+    status.className =
+      `referral-status ${referral.active ? "active" : "inactive"}`;
+    status.textContent = referral.active ? "Активный" : "Неактивный";
+
+    person.append(name, details);
+    item.append(avatar, person, status);
+
+    return item;
+  }
+
+  function renderReferralList(referrals) {
+    const list = document.getElementById("referralList");
+    if (!list) return;
+
+    const items = Array.isArray(referrals) ? referrals : [];
+
+    if (!items.length) {
+      const empty = document.createElement("div");
+      empty.className = "card referral-empty";
+      empty.textContent = "У вас пока нет приглашённых друзей.";
+      list.replaceChildren(empty);
+      return;
+    }
+
+    list.replaceChildren(...items.map(makeReferralElement));
+  }
+
   function updateUserUi(userData) {
     const balance = document.getElementById("balanceValue");
     const completed = document.getElementById("completedTasksValue");
@@ -579,6 +701,8 @@
     if (profileEarned) {
       profileEarned.textContent = formatReward(userData.total_earned);
     }
+
+    renderReferralList(userData.referrals || []);
   }
 
   async function apiPost(path) {
