@@ -192,8 +192,13 @@
     .amounts button{background:#08182e;border:1px solid #234369;color:#fff;border-radius:9px;padding:10px}
     .amounts button.active{border-color:#1e80ff;background:#0b2e68}
     .history-list{padding:9px 14px}
-    .history-item{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid #102646}
-    .history-item:last-child{border-bottom:0}.history-item .info{flex:1}.history-item small{display:block;color:#7f92ad}
+    .history-item{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid #102646}
+    .history-item:last-child{border-bottom:0}.history-item .info{flex:1;min-width:0}.history-item small{display:block;color:#7f92ad;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .history-icon{width:38px;height:38px;border-radius:12px;background:#0a1c37;border:1px solid #1a3b65;display:grid;place-items:center;font-size:18px;flex:0 0 auto}
+    .history-side{text-align:right;flex:0 0 auto}.history-amount{display:block;font-size:14px}.history-amount.credit{color:var(--green)}.history-amount.debit{color:#ff8295}
+    .history-status{display:inline-block;margin-top:4px;padding:3px 7px;border-radius:999px;font-size:9px;font-weight:700;color:#8fa3bf;background:#0a1a31}
+    .history-status.pending{color:var(--yellow);background:rgba(255,205,74,.1)}.history-status.paid,.history-status.completed,.history-status.refunded{color:var(--green);background:rgba(37,233,140,.1)}.history-status.rejected{color:#ff8295;background:rgba(255,90,120,.1)}
+    .history-empty{padding:20px;text-align:center;color:#8fa1bc}
     .ok{color:var(--green);font-size:12px}.minus{color:var(--red);font-size:12px}
     .profile{text-align:center;padding:15px}
     .profile .avatar{width:74px;height:74px;margin:auto;font-size:26px;border-color:#833dff}
@@ -347,7 +352,7 @@
 
     <section id="tasks" class="app-screen" hidden>
       <header class="top"><button class="icon-btn back">‹</button><div class="title">Задания</div><button class="icon-btn bell">♧<i class="dot"></i></button></header>
-      <div class="tabs"><button class="tab active">Все</button><button class="tab">Подписки</button><button class="tab">Соц. сети</button><button class="tab">Бонусы</button></div>
+      <div class="tabs"><button class="tab active">Все</button></div>
       <div id="homeTaskList" class="task-list">
         <div class="card task"><div class="task-logo">✈️</div><div class="task-info"><b>Подписаться на канал Telegram</b><span class="reward">💎 +5 GRAM</span></div><button class="btn task-action">Выполнить</button></div>
         <div class="card task"><div class="task-logo red">▶</div><div class="task-info"><b>Посмотреть видео на YouTube</b><span class="reward">💎 +10 GRAM</span></div><button class="btn task-action">Выполнить</button></div>
@@ -448,8 +453,14 @@
 
     <section id="history" class="app-screen" hidden>
       <header class="top"><button class="icon-btn back">‹</button><div class="title">История операций</div><span></span></header>
-      <div class="tabs"><button class="tab active">Все</button><button class="tab">Начисления</button><button class="tab">Выводы</button></div>
-      <div class="card history-list"><div class="label" style="padding:18px;text-align:center">История появится после подключения базы данных.</div></div>
+      <div class="tabs">
+        <button class="tab active" data-history-filter="all">Все</button>
+        <button class="tab" data-history-filter="credit">Начисления</button>
+        <button class="tab" data-history-filter="withdrawal">Выводы</button>
+      </div>
+      <div id="operationHistoryList" class="card history-list">
+        <div class="history-empty">Загружаем историю...</div>
+      </div>
     </section>
 
     <section id="levels" class="app-screen" hidden>
@@ -486,6 +497,8 @@
     document.querySelectorAll(".app-screen").forEach(s=>s.hidden=true);
     document.getElementById(id).hidden=false;
     document.querySelectorAll(".nav button").forEach(b=>b.classList.toggle("active",b.dataset.open===id));
+    if(id==="history") loadOperationHistory();
+    if(id==="withdraw") loadWithdrawals();
     window.scrollTo({top:0,behavior:"smooth"});
   }
   document.querySelectorAll("[data-open]").forEach(b=>b.addEventListener("click",()=>openPage(b.dataset.open)));
@@ -1090,6 +1103,121 @@
     }
   }
 
+  let currentOperations = [];
+  let currentHistoryFilter = "all";
+
+  function operationStatusLabel(status) {
+    return {
+      completed: "Начислено",
+      pending: "На проверке",
+      paid: "Выплачено",
+      rejected: "Отклонено",
+      refunded: "Возвращено"
+    }[status] || status || "Готово";
+  }
+
+  function makeOperationElement(operation) {
+    const item = document.createElement("div");
+    item.className = "history-item";
+
+    const icon = document.createElement("div");
+    icon.className = "history-icon";
+    icon.textContent = operation.icon || "▣";
+
+    const info = document.createElement("div");
+    info.className = "info";
+
+    const title = document.createElement("b");
+    title.textContent = operation.title || "Операция";
+
+    const details = document.createElement("small");
+    const detailParts = [];
+    if (operation.details) detailParts.push(operation.details);
+    if (operation.created_at) {
+      detailParts.push(formatWithdrawalDate(operation.created_at));
+    }
+    details.textContent = detailParts.join(" · ");
+
+    const side = document.createElement("div");
+    side.className = "history-side";
+
+    const amountValue = Number(operation.amount || 0);
+    const amount = document.createElement("b");
+    amount.className =
+      `history-amount ${amountValue >= 0 ? "credit" : "debit"}`;
+    amount.textContent =
+      `${amountValue >= 0 ? "+" : "−"}${formatReward(Math.abs(amountValue))} GRAM`;
+
+    const status = document.createElement("span");
+    status.className = `history-status ${operation.status || ""}`;
+    status.textContent = operationStatusLabel(operation.status);
+
+    info.append(title, details);
+    side.append(amount, status);
+    item.append(icon, info, side);
+    return item;
+  }
+
+  function renderOperationHistory(filter = currentHistoryFilter) {
+    const list = document.getElementById("operationHistoryList");
+    if (!list) return;
+
+    currentHistoryFilter = filter;
+    const visible = currentOperations.filter(operation =>
+      filter === "all" || operation.category === filter
+    );
+
+    if (!visible.length) {
+      const empty = document.createElement("div");
+      empty.className = "history-empty";
+      empty.textContent = filter === "all"
+        ? "История операций пока пуста."
+        : filter === "credit"
+          ? "Начислений пока нет."
+          : "Операций вывода пока нет.";
+      list.replaceChildren(empty);
+      return;
+    }
+
+    list.replaceChildren(...visible.map(makeOperationElement));
+  }
+
+  async function loadOperationHistory() {
+    const list = document.getElementById("operationHistoryList");
+    if (list && !currentOperations.length) {
+      const loading = document.createElement("div");
+      loading.className = "history-empty";
+      loading.textContent = "Загружаем историю...";
+      list.replaceChildren(loading);
+    }
+
+    try {
+      const data = await apiPost("/api/history");
+      currentOperations = Array.isArray(data.operations)
+        ? data.operations
+        : [];
+      renderOperationHistory(currentHistoryFilter);
+    } catch (error) {
+      console.error(error);
+      if (list) {
+        const failed = document.createElement("div");
+        failed.className = "history-empty";
+        failed.textContent = "Не удалось загрузить историю. Попробуйте ещё раз.";
+        list.replaceChildren(failed);
+      }
+    }
+  }
+
+  document.querySelectorAll("[data-history-filter]").forEach(button => {
+    button.addEventListener("click", () => {
+      document.querySelectorAll("[data-history-filter]").forEach(tab =>
+        tab.classList.toggle("active", tab === button)
+      );
+      renderOperationHistory(button.dataset.historyFilter || "all");
+    });
+  });
+
+
   document.querySelectorAll("[data-withdraw-amount]").forEach(
     button => button.addEventListener("click", () => {
       document.getElementById("withdrawAmountInput").value =
@@ -1173,7 +1301,7 @@
         );
         amountInput.value = "";
         updateUserUi(data.user);
-        await loadWithdrawals();
+        await Promise.all([loadWithdrawals(), loadOperationHistory()]);
         showToast(
           `Заявка #${data.withdrawal.id} создана. Срок — до 72 часов`
         );
@@ -1263,7 +1391,7 @@
           button.textContent = "Выполнено";
           button.className = "btn secondary";
           updateUserUi(result.user);
-          await loadTasks();
+          await Promise.all([loadTasks(), loadOperationHistory()]);
           return;
         }
       } catch (error) {
@@ -1316,7 +1444,8 @@
     await Promise.all([
       loadUserData(),
       loadTasks(),
-      loadWithdrawals()
+      loadWithdrawals(),
+      loadOperationHistory()
     ]);
   }
 
