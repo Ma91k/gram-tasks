@@ -313,8 +313,23 @@
       gap:12px;padding:10px 0;border-bottom:1px solid #102646
     }
     .leaderboard-reward-row:last-child{border-bottom:0}
-    .leaderboard-reward-place{font-weight:800}
-    .leaderboard-reward-amount{color:var(--cyan);font-weight:800}
+    .leaderboard-reward-place{min-width:0;flex:1}
+    .leaderboard-reward-place b{
+      display:block;font-weight:800
+    }
+    .leaderboard-reward-place small{
+      display:block;color:var(--muted);margin-top:4px;
+      overflow:hidden;text-overflow:ellipsis;white-space:nowrap
+    }
+    .leaderboard-reward-row.current{
+      background:rgba(23,228,245,.05)
+    }
+    .leaderboard-reward-amount{
+      color:var(--cyan);font-weight:800;flex:0 0 auto;text-align:right
+    }
+    .leaderboard-load-more{
+      width:100%;margin-top:10px
+    }
   
     .language-modal{
       position:fixed;inset:0;z-index:1000;display:grid;place-items:center;
@@ -445,6 +460,9 @@
           В лидерборде пока нет участников.
         </div>
       </div>
+      <button id="leaderboardLoadMore" class="btn secondary leaderboard-load-more" hidden>
+        Показать ещё 10
+      </button>
 
       <h3 class="section-title">Награды недели</h3>
       <div id="leaderboardRewardsList" class="card leaderboard-rewards">
@@ -600,6 +618,8 @@
     "Ваше место":"Your position",
     "Рейтинг по активным рефералам за текущую неделю.":"Ranking by active referrals for the current week.",
     "В лидерборде пока нет участников.":"There are no leaderboard participants yet.",
+    "Показать ещё 10":"Show 10 more",
+    "Место пока свободно":"This place is currently vacant",
     "Награды":"Rewards",
     "Награды недели":"Weekly rewards",
     "Награды пока не настроены.":"Rewards are not configured yet.",
@@ -712,6 +732,8 @@
         result = `invited ${match[1]}`;
       } else if ((match = core.match(/^Всего приглашено:\s*(\d+)$/))) {
         result = `Total invited: ${match[1]}`;
+      } else if ((match = core.match(/^(\d+) место$/))) {
+        result = `Place ${match[1]}`;
       } else if ((match = core.match(/^Минимальный вывод:\s*(.+)\sGRAM$/))) {
         result = `Minimum withdrawal: ${match[1]} GRAM`;
       } else if ((match = core.match(/^За каждого активного реферала вы получите\s+(.+)\sGRAM\.$/))) {
@@ -960,6 +982,9 @@
   let currentUserBalance = 0;
   let currentMinWithdrawal = 5;
   let currentAccountStatus = "normal";
+  let currentLeaderboardEntries = [];
+  let currentLeaderboardPosition = null;
+  let visibleLeaderboardCount = 10;
 
   function copyReferralLink() {
     if (!currentReferralLink) {
@@ -1169,50 +1194,78 @@
     );
   }
 
-  function renderLeaderboardRewards(rewards, placesCount, weekEnd) {
+  function renderLeaderboardRewards(
+    rewards,
+    placesCount,
+    weekEnd,
+    leaderboardEntries
+  ) {
     const list = document.getElementById("leaderboardRewardsList");
     const description = document.getElementById("leaderboardDescription");
     const weekText = document.getElementById("leaderboardWeekText");
-    const safePlaces = Math.max(1, Number(placesCount || 10));
-    const values = Array.isArray(rewards) ? rewards.slice(0, safePlaces) : [];
+    const safePlaces = Math.max(
+      1,
+      Math.min(10, Number(placesCount || 10))
+    );
+    const values = Array.from(
+      {length: safePlaces},
+      (_, index) => Number(
+        Array.isArray(rewards) ? rewards[index] || 0 : 0
+      )
+    );
+    const entries = Array.isArray(leaderboardEntries)
+      ? leaderboardEntries
+      : [];
 
     if (description) {
-      description.textContent = currentLanguage === "en"
-        ? `Top ${safePlaces} by active referrals during the current week.`
-        : `Топ-${safePlaces} по активным рефералам за текущую неделю.`;
+      description.textContent =
+        "Топ-50 по активным рефералам за текущую неделю. " +
+        `Призовых мест: ${safePlaces}.`;
     }
 
     if (weekText) {
       const endText = formatLeaderboardDate(weekEnd);
-      weekText.textContent = currentLanguage === "en"
-        ? `The leaderboard resets automatically: ${endText}`
-        : `Автоматическое обновление лидерборда: ${endText}`;
+      weekText.textContent =
+        `Автоматическое обновление лидерборда: ${endText}`;
     }
 
     if (!list) return;
 
-    if (!values.length || !values.some(value => Number(value) > 0)) {
-      const empty = document.createElement("div");
-      empty.className = "referral-empty";
-      empty.textContent = currentLanguage === "en"
-        ? "Rewards have not been configured by the administrator yet."
-        : "Награды пока не настроены администратором.";
-      list.replaceChildren(empty);
-      return;
-    }
-
     const rows = values.map((reward, index) => {
-      const row = document.createElement("div");
-      row.className = "leaderboard-reward-row";
+      const placeNumber = index + 1;
+      const entry = entries.find(
+        item => Number(item.place) === placeNumber
+      );
 
-      const place = document.createElement("span");
+      const row = document.createElement("div");
+      row.className =
+        `leaderboard-reward-row${entry?.is_current_user ? " current" : ""}`;
+
+      const place = document.createElement("div");
       place.className = "leaderboard-reward-place";
-      place.textContent = `${getLeaderboardMedal(index + 1)} ${index + 1}`;
+
+      const placeTitle = document.createElement("b");
+      placeTitle.textContent =
+        `${getLeaderboardMedal(placeNumber)} ${placeNumber} место`;
+
+      const participant = document.createElement("small");
+      if (entry) {
+        const participantParts = [
+          entry.name || "Пользователь Telegram"
+        ];
+        if (entry.username) {
+          participantParts.push(`@${entry.username}`);
+        }
+        participant.textContent = participantParts.join(" · ");
+      } else {
+        participant.textContent = "Место пока свободно";
+      }
 
       const amount = document.createElement("span");
       amount.className = "leaderboard-reward-amount";
       amount.textContent = `${formatReward(reward)} GRAM`;
 
+      place.append(placeTitle, participant);
       row.append(place, amount);
       return row;
     });
@@ -1255,31 +1308,69 @@
     return item;
   }
 
-  function renderLeaderboard(entries, userPosition) {
+  function drawLeaderboardPage() {
     const list = document.getElementById("leaderboardList");
-    const position = document.getElementById(
-      "leaderboardPositionValue"
+    const loadMoreButton = document.getElementById(
+      "leaderboardLoadMore"
     );
-
-    if (position) {
-      position.textContent = userPosition
-        ? `#${Number(userPosition)}`
-        : "Пока нет";
-    }
 
     if (!list) return;
 
-    const items = Array.isArray(entries) ? entries : [];
-
-    if (!items.length) {
+    if (!currentLeaderboardEntries.length) {
       const empty = document.createElement("div");
       empty.className = "card referral-empty";
       empty.textContent = "В лидерборде пока нет участников.";
       list.replaceChildren(empty);
+      if (loadMoreButton) loadMoreButton.hidden = true;
       return;
     }
 
-    list.replaceChildren(...items.map(makeLeaderboardElement));
+    const visibleEntries = currentLeaderboardEntries.slice(
+      0,
+      visibleLeaderboardCount
+    );
+    list.replaceChildren(
+      ...visibleEntries.map(makeLeaderboardElement)
+    );
+
+    if (loadMoreButton) {
+      loadMoreButton.hidden =
+        visibleLeaderboardCount >= currentLeaderboardEntries.length;
+      loadMoreButton.textContent = "Показать ещё 10";
+    }
+  }
+
+  function renderLeaderboard(entries, userPosition) {
+    const position = document.getElementById(
+      "leaderboardPositionValue"
+    );
+
+    currentLeaderboardEntries = Array.isArray(entries)
+      ? entries.slice(0, 50)
+      : [];
+    currentLeaderboardPosition = userPosition || null;
+    visibleLeaderboardCount = 10;
+
+    if (position) {
+      position.textContent = currentLeaderboardPosition
+        ? `#${Number(currentLeaderboardPosition)}`
+        : "Пока нет";
+    }
+
+    drawLeaderboardPage();
+  }
+
+  const leaderboardLoadMoreButton = document.getElementById(
+    "leaderboardLoadMore"
+  );
+  if (leaderboardLoadMoreButton) {
+    leaderboardLoadMoreButton.addEventListener("click", () => {
+      visibleLeaderboardCount = Math.min(
+        visibleLeaderboardCount + 10,
+        currentLeaderboardEntries.length
+      );
+      drawLeaderboardPage();
+    });
   }
 
   function updateUserUi(userData) {
@@ -1424,7 +1515,8 @@
     renderLeaderboardRewards(
       userData.leaderboard_rewards || [],
       userData.leaderboard_places || 10,
-      userData.leaderboard_week_end
+      userData.leaderboard_week_end,
+      userData.leaderboard || []
     );
   }
 
