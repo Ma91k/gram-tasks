@@ -323,9 +323,29 @@
     .language-choice .check{color:var(--cyan);font-size:18px}
     .language-close{width:100%;margin-top:12px}
 
+
+    .server-loader{position:fixed;inset:0;z-index:10000;background:rgba(3,8,20,.97);display:flex;align-items:center;justify-content:center;padding:24px}
+    .server-loader[hidden]{display:none}
+    .server-loader-card{width:min(420px,100%);text-align:center;background:linear-gradient(145deg,#0a1c38,#11143b);border:1px solid #1e4a7c;border-radius:24px;padding:28px 22px;box-shadow:0 24px 70px rgba(0,0,0,.45)}
+    .server-spinner{width:54px;height:54px;margin:0 auto 18px;border:5px solid rgba(38,190,255,.18);border-top-color:#25c6ff;border-radius:50%;animation:server-spin .9s linear infinite}
+    .server-loader h3{margin:0 0 10px;font-size:24px}
+    .server-loader p{margin:0;color:var(--muted);line-height:1.45}
+    .server-loader small{display:block;margin-top:10px;color:#6f83a5}
+    .server-retry{margin-top:18px;width:100%}
+    @keyframes server-spin{to{transform:rotate(360deg)}}
+
   </style>
 </head>
 <body>
+<div id="serverLoader" class="server-loader" hidden>
+  <div class="server-loader-card">
+    <div id="serverSpinner" class="server-spinner"></div>
+    <h3 id="serverLoaderTitle">Запускаем сервер</h3>
+    <p id="serverLoaderText">Подождите, данные загружаются. Обычно это занимает до одной минуты.</p>
+    <small id="serverLoaderAttempt"></small>
+    <button id="serverRetryBtn" class="btn server-retry" hidden>Повторить</button>
+  </div>
+</div>
 <main class="app">
   <section id="subscription" class="screen active subscription">
     <div class="big-icon">🔔</div>
@@ -372,12 +392,8 @@
     <section id="tasks" class="app-screen" hidden>
       <header class="top"><button class="icon-btn back">‹</button><div class="title">Задания</div><button class="icon-btn bell">♧<i class="dot"></i></button></header>
       <div class="tabs"><button class="tab active">Все</button></div>
-      <div id="homeTaskList" class="task-list">
-        <div class="card task"><div class="task-logo">✈️</div><div class="task-info"><b>Подписаться на канал Telegram</b><span class="reward">💎 +5 GRAM</span></div><button class="btn task-action">Выполнить</button></div>
-        <div class="card task"><div class="task-logo red">▶</div><div class="task-info"><b>Посмотреть видео на YouTube</b><span class="reward">💎 +10 GRAM</span></div><button class="btn task-action">Выполнить</button></div>
-        <div class="card task"><div class="task-logo">✈️</div><div class="task-info"><b>Пригласить друга</b><span class="reward">💎 +25 GRAM</span></div><button class="btn task-action">Выполнить</button></div>
-        <div class="card task"><div class="task-logo">✈️</div><div class="task-info"><b>Оставить отзыв в Telegram</b><span class="reward">💎 +15 GRAM</span></div><button class="btn task-action">Выполнить</button></div>
-        <div class="card task"><div class="task-logo green">✓</div><div class="task-info"><b>Новые задания</b><span class="reward">Скоро появятся</span></div><button class="btn secondary">Soon</button></div>
+      <div id="tasksTaskList" class="task-list">
+        <div class="card referral-empty">Подключаемся к серверу...</div>
       </div>
     </section>
 
@@ -655,7 +671,16 @@
     "Открыть":"Open",
     "Проверить":"Check",
     "Не удалось загрузить задания":"Could not load tasks",
-    "Пользователь":"User"
+    "Пользователь":"User",
+    "Запускаем сервер":"Starting the server",
+    "Подождите, данные загружаются. Обычно это занимает до одной минуты.":"Please wait while the data loads. This usually takes up to one minute.",
+    "Подключение к серверу...":"Connecting to the server...",
+    "Сервер ещё запускается...":"The server is still starting...",
+    "Не удалось подключиться к серверу.":"Could not connect to the server.",
+    "Нажмите «Повторить», чтобы попробовать снова.":"Tap Retry to try again.",
+    "Повторить":"Retry",
+    "Подключаемся к серверу...":"Connecting to the server...",
+    "Новых заданий пока нет.":"There are no new tasks yet."
   };
 
   function localizedText(value, language = currentLanguage) {
@@ -754,6 +779,10 @@
     if (typeof renderOperationHistory === "function") {
       renderOperationHistory(currentHistoryFilter);
     }
+    if (serverLoader && !serverLoader.hidden) {
+      const failed = !serverRetryBtn.hidden;
+      setServerLoader({visible:true, failed});
+    }
   }
 
   const languageObserver = new MutationObserver(mutations => {
@@ -776,6 +805,40 @@
   languageObserver.observe(document.body, {childList:true, subtree:true});
 
   function showToast(text){toast.textContent=localizedText(text);toast.style.display="block";setTimeout(()=>toast.style.display="none",2200)}
+
+  const serverLoader = document.getElementById("serverLoader");
+  const serverLoaderTitle = document.getElementById("serverLoaderTitle");
+  const serverLoaderText = document.getElementById("serverLoaderText");
+  const serverLoaderAttempt = document.getElementById("serverLoaderAttempt");
+  const serverRetryBtn = document.getElementById("serverRetryBtn");
+  const serverSpinner = document.getElementById("serverSpinner");
+  let appLoadInProgress = false;
+
+  function wait(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  function setServerLoader({visible=true, failed=false, attempt=0, maxAttempts=0} = {}) {
+    if (!serverLoader) return;
+    serverLoader.hidden = !visible;
+    if (!visible) return;
+
+    serverLoaderTitle.textContent = localizedText(
+      failed ? "Не удалось подключиться к серверу." : "Запускаем сервер"
+    );
+    serverLoaderText.textContent = localizedText(
+      failed
+        ? "Нажмите «Повторить», чтобы попробовать снова."
+        : attempt > 1
+          ? "Сервер ещё запускается..."
+          : "Подождите, данные загружаются. Обычно это занимает до одной минуты."
+    );
+    serverLoaderAttempt.textContent = (!failed && attempt && maxAttempts)
+      ? `${attempt} / ${maxAttempts}`
+      : "";
+    serverRetryBtn.hidden = !failed;
+    serverSpinner.hidden = failed;
+  }
   function openPage(id){
     document.querySelectorAll(".app-screen").forEach(s=>s.hidden=true);
     document.getElementById(id).hidden=false;
@@ -881,7 +944,6 @@
     loadAppData();
     setTimeout(silentSubscriptionCheck, 300);
   }
-  document.querySelectorAll(".task-action").forEach(b=>b.addEventListener("click",()=>showToast("Задание станет рабочим после подключения backend")));
   let currentReferralLink = "";
   let currentUserBalance = 0;
   let currentMinWithdrawal = 5;
@@ -1718,48 +1780,67 @@
     return wrapper;
   }
 
-  async function loadTasks() {
-    try {
-      const data = await apiPost("/api/tasks");
-      const allTasks = data.tasks || [];
+  function renderTasks(tasks) {
+    const tasksList = document.getElementById("tasksTaskList");
+    if (!tasksList) return;
 
-      const homeList = document.getElementById("homeTaskList");
-      const tasksList = document.getElementById("tasksTaskList");
-
-      if (homeList) {
-        homeList.replaceChildren(
-          ...allTasks.slice(0, 2).map(makeTaskElement)
-        );
-      }
-
-      if (tasksList) {
-        tasksList.replaceChildren(
-          ...allTasks.map(makeTaskElement)
-        );
-      }
-    } catch (error) {
-      console.error(error);
-      showToast(error.message || "Не удалось загрузить задания");
+    const allTasks = Array.isArray(tasks) ? tasks : [];
+    if (!allTasks.length) {
+      const empty = document.createElement("div");
+      empty.className = "card referral-empty";
+      empty.textContent = "Новых заданий пока нет.";
+      tasksList.replaceChildren(empty);
+      return;
     }
+
+    tasksList.replaceChildren(...allTasks.map(makeTaskElement));
+  }
+
+  async function loadTasks() {
+    const data = await apiPost("/api/tasks");
+    renderTasks(data.tasks || []);
+    return data;
   }
 
   async function loadUserData() {
-    try {
-      const data = await apiPost("/api/me");
-      updateUserUi(data.user);
-    } catch (error) {
-      console.error(error);
-    }
+    const data = await apiPost("/api/me");
+    updateUserUi(data.user);
+    return data;
   }
 
   async function loadAppData() {
-    await Promise.all([
-      loadUserData(),
-      loadTasks(),
-      loadWithdrawals(),
-      loadOperationHistory()
-    ]);
+    if (appLoadInProgress) return;
+    appLoadInProgress = true;
+
+    const maxAttempts = 12;
+    setServerLoader({visible:true, attempt:1, maxAttempts});
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      setServerLoader({visible:true, attempt, maxAttempts});
+
+      try {
+        await Promise.all([loadUserData(), loadTasks()]);
+        setServerLoader({visible:false});
+        appLoadInProgress = false;
+
+        Promise.allSettled([
+          loadWithdrawals(),
+          loadOperationHistory()
+        ]);
+        return;
+      } catch (error) {
+        console.error(`Initial load attempt ${attempt} failed:`, error);
+        if (attempt < maxAttempts) {
+          await wait(attempt < 4 ? 3000 : 5000);
+        }
+      }
+    }
+
+    appLoadInProgress = false;
+    setServerLoader({visible:true, failed:true});
   }
+
+  serverRetryBtn.addEventListener("click", loadAppData);
 
   const user=tg?.initDataUnsafe?.user;
   if(user){
