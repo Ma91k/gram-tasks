@@ -1163,6 +1163,8 @@
     }
   }
 
+  let subscriptionRequestPromise = null;
+
   function isTemporarySubscriptionError(error) {
     const message = String(error?.message || "");
 
@@ -1175,29 +1177,26 @@
   }
 
   async function requestSubscriptionStatus(
-    timeoutMs = 12000,
-    retry = true
+    timeoutMs = 16000
   ) {
+    if (subscriptionRequestPromise) {
+      return subscriptionRequestPromise;
+    }
+
+    subscriptionRequestPromise = (async () => {
+      const data = await postJson(
+        "/api/check-subscription",
+        {},
+        timeoutMs
+      );
+
+      return data.subscribed === true;
+    })();
+
     try {
-      const data = await postJson(
-        "/api/check-subscription",
-        {},
-        timeoutMs
-      );
-      return data.subscribed === true;
-    } catch (error) {
-      if (!retry || !isTemporarySubscriptionError(error)) {
-        throw error;
-      }
-
-      await wait(900);
-
-      const data = await postJson(
-        "/api/check-subscription",
-        {},
-        timeoutMs
-      );
-      return data.subscribed === true;
+      return await subscriptionRequestPromise;
+    } finally {
+      subscriptionRequestPromise = null;
     }
   }
 
@@ -1240,7 +1239,7 @@
   async function silentSubscriptionCheck() {
     try {
       const subscribed =
-        await requestSubscriptionStatus(9000, false);
+        await requestSubscriptionStatus(16000);
 
       if (subscribed) {
         markSubscriptionVerified();
