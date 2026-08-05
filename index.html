@@ -805,6 +805,8 @@
     "Откройте Mini App через Telegram-бота":"Open the Mini App through the Telegram bot",
     "Ошибка сервера":"Server error",
     "Ошибка проверки подписки":"Subscription check error",
+    "Не удалось проверить подписку. Нажмите ещё раз.":"Could not verify the subscription. Tap again.",
+    "Проверка подписки заняла слишком много времени":"Subscription verification took too long",
     "На проверке":"Under review",
     "Выплачено":"Paid",
     "Отклонено":"Rejected",
@@ -1161,15 +1163,42 @@
     }
   }
 
+  function isTemporarySubscriptionError(error) {
+    const message = String(error?.message || "");
+
+    return [
+      "Сервер временно недоступен",
+      "Проверка подписки заняла слишком много времени",
+      "Telegram временно недоступен",
+      "Telegram временно ограничил проверки. Повторите позже"
+    ].includes(message);
+  }
+
   async function requestSubscriptionStatus(
-    timeoutMs = 6500
+    timeoutMs = 12000,
+    retry = true
   ) {
-    const data = await postJson(
-      "/api/check-subscription",
-      {},
-      timeoutMs
-    );
-    return data.subscribed === true;
+    try {
+      const data = await postJson(
+        "/api/check-subscription",
+        {},
+        timeoutMs
+      );
+      return data.subscribed === true;
+    } catch (error) {
+      if (!retry || !isTemporarySubscriptionError(error)) {
+        throw error;
+      }
+
+      await wait(900);
+
+      const data = await postJson(
+        "/api/check-subscription",
+        {},
+        timeoutMs
+      );
+      return data.subscribed === true;
+    }
   }
 
   async function checkRealSubscription() {
@@ -1196,9 +1225,12 @@
       }
     } catch (error) {
       console.error(error);
-      showToast(
-        error.message || "Сервер временно недоступен"
-      );
+
+      const message = isTemporarySubscriptionError(error)
+        ? "Не удалось проверить подписку. Нажмите ещё раз."
+        : (error.message || "Ошибка проверки подписки");
+
+      showToast(message);
     } finally {
       button.disabled = false;
       button.textContent = originalText;
@@ -1208,7 +1240,7 @@
   async function silentSubscriptionCheck() {
     try {
       const subscribed =
-        await requestSubscriptionStatus(5000);
+        await requestSubscriptionStatus(9000, false);
 
       if (subscribed) {
         markSubscriptionVerified();
