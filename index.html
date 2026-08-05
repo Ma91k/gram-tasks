@@ -781,6 +781,7 @@
     "Подписка подтверждена":"Subscription confirmed",
     "Сначала подпишитесь на канал":"Subscribe to the channel first",
     "Сервер временно недоступен":"Server is temporarily unavailable",
+    "Ошибка проверки задания":"Task verification error",
     "Подписка на канал больше не активна":"The channel subscription is no longer active",
     "Задание станет рабочим после подключения backend":"The task will work after backend connection",
     "Реферальная ссылка пока недоступна":"The referral link is temporarily unavailable",
@@ -2200,22 +2201,72 @@
       button.textContent = "Проверяем...";
 
       try {
-        const result = await apiPost(`/api/tasks/${task.id}/verify`);
+        const result = await apiPost(
+          `/api/tasks/${task.id}/verify`,
+          {},
+          15000
+        );
+
         showToast(result.message);
 
         if (result.completed) {
           task.completed = true;
           button.textContent = "Выполнено";
           button.className = "btn secondary";
-          updateUserUi(result.user);
+
+          if (result.user) {
+            updateUserUi(result.user);
+          }
+
           Promise.allSettled([
             loadTasks(),
-            loadOperationHistory()
+            loadOperationHistory(),
+            loadAppData({silent:true})
           ]);
           return;
         }
       } catch (error) {
-        showToast(error.message);
+        console.error("Task verification failed:", error);
+
+        if (
+          error?.message === "Сервер временно недоступен"
+        ) {
+          try {
+            await wait(700);
+
+            const tasksResult = await apiPost(
+              "/api/tasks",
+              {},
+              10000
+            );
+
+            const freshTask = Array.isArray(tasksResult.tasks)
+              ? tasksResult.tasks.find(
+                  item => Number(item.id) === Number(task.id)
+                )
+              : null;
+
+            if (freshTask?.completed) {
+              task.completed = true;
+              button.textContent = "Выполнено";
+              button.className = "btn secondary";
+              showToast("Выполнено");
+
+              Promise.allSettled([
+                loadOperationHistory(),
+                loadAppData({silent:true})
+              ]);
+              return;
+            }
+          } catch (recoveryError) {
+            console.error(
+              "Task verification recovery failed:",
+              recoveryError
+            );
+          }
+        }
+
+        showToast(error.message || "Ошибка проверки задания");
       }
 
       button.disabled = false;
