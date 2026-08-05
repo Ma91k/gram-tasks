@@ -978,26 +978,8 @@
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
-  function setServerLoader({visible=true, failed=false, attempt=0, maxAttempts=0} = {}) {
-    if (!serverLoader) return;
-    serverLoader.hidden = !visible;
-    if (!visible) return;
-
-    serverLoaderTitle.textContent = localizedText(
-      failed ? "Не удалось подключиться к серверу." : "Запускаем сервер"
-    );
-    serverLoaderText.textContent = localizedText(
-      failed
-        ? "Нажмите «Повторить», чтобы попробовать снова."
-        : attempt > 1
-          ? "Сервер ещё запускается..."
-          : "Подождите, данные загружаются. Обычно это занимает до одной минуты."
-    );
-    serverLoaderAttempt.textContent = (!failed && attempt && maxAttempts)
-      ? `${attempt} / ${maxAttempts}`
-      : "";
-    serverRetryBtn.hidden = !failed;
-    serverSpinner.hidden = failed;
+  function setServerLoader() {
+    if (serverLoader) serverLoader.hidden = true;
   }
   function openPage(id){
     document.querySelectorAll(".app-screen").forEach(s=>s.hidden=true);
@@ -1014,7 +996,100 @@
   document.querySelectorAll(".back").forEach(b=>b.addEventListener("click",()=>openPage(b.dataset.back || "home")));
   document.getElementById("joinChannel").addEventListener("click",()=>tg?tg.openTelegramLink("https://t.me/Gram_taskss"):window.open("https://t.me/Gram_taskss","_blank"));
   const API_URL = "https://ma91k-gram-tasks-backend-d0bf.twc1.net";
-  const SUBSCRIPTION_CACHE_KEY = "gram_tasks_subscription_ok";
+  const TELEGRAM_USER_ID = String(
+    tg?.initDataUnsafe?.user?.id || "guest"
+  );
+  const SUBSCRIPTION_CACHE_KEY =
+    `gram_tasks_subscription_ok_${TELEGRAM_USER_ID}`;
+  const LEGACY_SUBSCRIPTION_CACHE_KEY =
+    "gram_tasks_subscription_ok";
+  const SUBSCRIPTION_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+  const APP_CACHE_PREFIX =
+    `gram_tasks_app_v2_${TELEGRAM_USER_ID}`;
+  const USER_CACHE_KEY = `${APP_CACHE_PREFIX}_user`;
+  const TASKS_CACHE_KEY = `${APP_CACHE_PREFIX}_tasks`;
+  const APP_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
+  function writeCache(key, value) {
+    try {
+      localStorage.setItem(
+        key,
+        JSON.stringify({
+          saved_at: Date.now(),
+          value
+        })
+      );
+    } catch (error) {
+      console.error("Cache write failed:", error);
+    }
+  }
+
+  function readCache(key, maxAgeMs = APP_CACHE_TTL_MS) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return null;
+
+      const parsed = JSON.parse(raw);
+      if (
+        !parsed ||
+        typeof parsed.saved_at !== "number" ||
+        Date.now() - parsed.saved_at > maxAgeMs
+      ) {
+        localStorage.removeItem(key);
+        return null;
+      }
+
+      return parsed.value ?? null;
+    } catch (error) {
+      localStorage.removeItem(key);
+      return null;
+    }
+  }
+
+  function markSubscriptionVerified() {
+    localStorage.setItem(
+      SUBSCRIPTION_CACHE_KEY,
+      String(Date.now())
+    );
+    localStorage.removeItem(
+      LEGACY_SUBSCRIPTION_CACHE_KEY
+    );
+  }
+
+  function hasFreshSubscriptionCache() {
+    const currentValue = Number(
+      localStorage.getItem(SUBSCRIPTION_CACHE_KEY) || 0
+    );
+
+    if (
+      currentValue > 0 &&
+      Date.now() - currentValue < SUBSCRIPTION_CACHE_TTL_MS
+    ) {
+      return true;
+    }
+
+    if (
+      localStorage.getItem(
+        LEGACY_SUBSCRIPTION_CACHE_KEY
+      ) === "1"
+    ) {
+      markSubscriptionVerified();
+      return true;
+    }
+
+    localStorage.removeItem(SUBSCRIPTION_CACHE_KEY);
+    return false;
+  }
+
+  function restoreCachedAppData() {
+    const cachedUser = readCache(USER_CACHE_KEY);
+    const cachedTasks = readCache(TASKS_CACHE_KEY);
+
+    if (cachedUser) updateUserUi(cachedUser);
+    if (Array.isArray(cachedTasks)) {
+      renderTasks(cachedTasks);
+    }
+  }
 
   function showApplication() {
     sub.classList.remove("active");
@@ -1029,32 +1104,77 @@
     sub.classList.add("active");
   }
 
-  async function requestSubscriptionStatus() {
+  async function postJson(
+    path,
+    payload = {},
+    timeoutMs = 7000
+  ) {
     if (!tg || !tg.initData) {
-      throw new Error("Откройте Mini App через Telegram-бота");
+      throw new Error("Откройте приложение через Telegram");
     }
 
-    const response = await fetch(`${API_URL}/api/check-subscription`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        init_data: tg.initData
-      })
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(
+      () => controller.abort(),
+      timeoutMs
+    );
 
-    const data = await response.json();
+    try {
+      const response = await fetch(`${API_URL}${path}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          init_data: tg.initData,
+          ...payload
+        }),
+        signal: controller.signal
+      });
 
-    if (!response.ok) {
-      throw new Error(data.detail || "Ошибка проверки подписки");
+      const responseText = await response.text();
+      let data = {};
+
+      if (responseText) {
+        try {
+          data = JSON.parse(responseText);
+        } catch (error) {
+          throw new Error("Некорректный ответ сервера");
+        }
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          data.detail || "Ошибка сервера"
+        );
+      }
+
+      return data;
+    } catch (error) {
+      if (error?.name === "AbortError") {
+        throw new Error("Сервер временно недоступен");
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
     }
+  }
 
+  async function requestSubscriptionStatus(
+    timeoutMs = 6500
+  ) {
+    const data = await postJson(
+      "/api/check-subscription",
+      {},
+      timeoutMs
+    );
     return data.subscribed === true;
   }
 
   async function checkRealSubscription() {
-    const button = document.getElementById("checkSubscription");
+    const button = document.getElementById(
+      "checkSubscription"
+    );
     const originalText = button.textContent;
 
     button.disabled = true;
@@ -1064,9 +1184,10 @@
       const subscribed = await requestSubscriptionStatus();
 
       if (subscribed) {
-        localStorage.setItem(SUBSCRIPTION_CACHE_KEY, "1");
+        markSubscriptionVerified();
         showApplication();
-        loadAppData();
+        restoreCachedAppData();
+        queueMicrotask(() => loadAppData({silent:true}));
         showToast("Подписка подтверждена");
       } else {
         showSubscriptionScreen();
@@ -1074,7 +1195,9 @@
       }
     } catch (error) {
       console.error(error);
-      showToast(error.message || "Сервер временно недоступен");
+      showToast(
+        error.message || "Сервер временно недоступен"
+      );
     } finally {
       button.disabled = false;
       button.textContent = originalText;
@@ -1083,29 +1206,40 @@
 
   async function silentSubscriptionCheck() {
     try {
-      const subscribed = await requestSubscriptionStatus();
+      const subscribed =
+        await requestSubscriptionStatus(5000);
 
       if (subscribed) {
-        localStorage.setItem(SUBSCRIPTION_CACHE_KEY, "1");
+        markSubscriptionVerified();
         return;
       }
 
       showSubscriptionScreen();
-      showToast("Подписка на канал больше не активна");
+      showToast(
+        "Подписка на канал больше не активна"
+      );
     } catch (error) {
-      console.error("Silent subscription check failed:", error);
+      console.error(
+        "Silent subscription check failed:",
+        error
+      );
     }
   }
 
-  document.getElementById("checkSubscription").addEventListener(
+  document.getElementById(
+    "checkSubscription"
+  ).addEventListener(
     "click",
     checkRealSubscription
   );
 
-  if (localStorage.getItem(SUBSCRIPTION_CACHE_KEY) === "1") {
+  if (hasFreshSubscriptionCache()) {
     showApplication();
-    loadAppData();
-    setTimeout(silentSubscriptionCheck, 300);
+    queueMicrotask(() => {
+      restoreCachedAppData();
+      loadAppData({silent:true});
+      setTimeout(silentSubscriptionCheck, 1800);
+    });
   }
   let currentReferralLink = "";
   let currentUserBalance = 0;
@@ -1670,27 +1804,12 @@
     );
   }
 
-  async function apiPost(path, payload = {}) {
-    if (!tg || !tg.initData) {
-      throw new Error("Откройте приложение через Telegram");
-    }
-
-    const response = await fetch(`${API_URL}${path}`, {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({
-        init_data: tg.initData,
-        ...payload
-      })
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.detail || "Ошибка сервера");
-    }
-
-    return data;
+  async function apiPost(
+    path,
+    payload = {},
+    timeoutMs = 7000
+  ) {
+    return postJson(path, payload, timeoutMs);
   }
 
   function formatWithdrawalDate(timestamp) {
@@ -2089,7 +2208,10 @@
           button.textContent = "Выполнено";
           button.className = "btn secondary";
           updateUserUi(result.user);
-          await Promise.all([loadTasks(), loadOperationHistory()]);
+          Promise.allSettled([
+            loadTasks(),
+            loadOperationHistory()
+          ]);
           return;
         }
       } catch (error) {
@@ -2121,50 +2243,72 @@
   }
 
   async function loadTasks() {
-    const data = await apiPost("/api/tasks");
-    renderTasks(data.tasks || []);
+    const data = await apiPost("/api/tasks", {}, 6500);
+    const taskItems = Array.isArray(data.tasks)
+      ? data.tasks
+      : [];
+    renderTasks(taskItems);
+    writeCache(TASKS_CACHE_KEY, taskItems);
     return data;
   }
 
   async function loadUserData() {
-    const data = await apiPost("/api/me");
+    const data = await apiPost("/api/me", {}, 6500);
     updateUserUi(data.user);
+    writeCache(USER_CACHE_KEY, data.user);
     return data;
   }
 
-  async function loadAppData() {
+  async function loadAppData(
+    {silent=false, retry=false} = {}
+  ) {
     if (appLoadInProgress) return;
     appLoadInProgress = true;
+    setServerLoader({visible:false});
 
-    const maxAttempts = 12;
-    setServerLoader({visible:true, attempt:1, maxAttempts});
-
-    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-      setServerLoader({visible:true, attempt, maxAttempts});
-
-      try {
-        await Promise.all([loadUserData(), loadTasks()]);
-        setServerLoader({visible:false});
-        appLoadInProgress = false;
-
-        Promise.allSettled([
-          loadWithdrawals(),
-          loadOperationHistory()
-        ]);
-        return;
-      } catch (error) {
-        console.error(`Initial load attempt ${attempt} failed:`, error);
-        if (attempt < maxAttempts) {
-          await wait(attempt < 4 ? 3000 : 5000);
-        }
-      }
-    }
+    const results = await Promise.allSettled([
+      loadUserData(),
+      loadTasks()
+    ]);
 
     appLoadInProgress = false;
-    setServerLoader({visible:true, failed:true});
+
+    const failed = results.filter(
+      result => result.status === "rejected"
+    );
+
+    if (!failed.length) {
+      Promise.allSettled([
+        loadWithdrawals(),
+        loadOperationHistory()
+      ]);
+      return;
+    }
+
+    failed.forEach(result =>
+      console.error(
+        "Initial data refresh failed:",
+        result.reason
+      )
+    );
+
+    if (!retry) {
+      setTimeout(
+        () => loadAppData({
+          silent:true,
+          retry:true
+        }),
+        1800
+      );
+    } else if (!silent) {
+      showToast("Сервер временно недоступен");
+    }
   }
 
-  serverRetryBtn.addEventListener("click", loadAppData);
+  serverRetryBtn.addEventListener(
+    "click",
+    () => loadAppData({silent:false})
+  );
 
   const user=tg?.initDataUnsafe?.user;
   if(user){
