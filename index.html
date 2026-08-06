@@ -148,6 +148,36 @@
     .task-logo.red{background:#ff263f}.task-logo.green{background:#05bd75}
     .task-info{flex:1}.task-info b{display:block;margin-bottom:4px}.reward{color:#24e4ff;font-size:12px;font-weight:700}
     .task .btn{padding:10px 13px;font-size:12px}
+    .task-panel[hidden]{display:none!important}
+    .task-tabs{gap:7px;margin-bottom:13px}
+    .task-tabs .tab{flex:1;padding:9px 7px;font-size:12px}
+    .user-task-card{padding:14px;display:grid;gap:11px}
+    .user-task-head{display:flex;align-items:flex-start;gap:10px}
+    .user-task-head .task-logo{margin-top:1px}
+    .user-task-title{flex:1;min-width:0}
+    .user-task-title b{display:block;overflow:hidden;text-overflow:ellipsis}
+    .user-task-title small{display:block;margin-top:4px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .task-status-pill{display:inline-flex;align-items:center;padding:5px 8px;border-radius:999px;font-size:10px;font-weight:800;background:#0c284d;color:#71ddff;border:1px solid #1d4a78}
+    .task-status-pill.warning{color:var(--yellow);background:rgba(255,205,74,.1);border-color:rgba(255,205,74,.3)}
+    .task-status-pill.success{color:var(--green);background:rgba(37,233,140,.1);border-color:rgba(37,233,140,.3)}
+    .task-status-pill.danger{color:#ff8da0;background:rgba(255,70,100,.1);border-color:rgba(255,70,100,.3)}
+    .user-task-progress-row{display:flex;justify-content:space-between;gap:10px;color:#a7b6cc;font-size:12px}
+    .user-task-progress{height:8px;background:#182842;border-radius:999px;overflow:hidden}
+    .user-task-progress i{display:block;height:100%;background:linear-gradient(90deg,#148cff,#21e1f5)}
+    .user-task-counts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+    .user-task-counts div{padding:9px 6px;text-align:center;background:#07162d;border:1px solid #17345e;border-radius:10px}
+    .user-task-counts strong{display:block;font-size:15px}.user-task-counts span{display:block;margin-top:3px;color:var(--muted);font-size:9px}
+    .task-actions{display:flex;gap:8px;flex-wrap:wrap}
+    .task-actions .btn{flex:1;min-width:115px;padding:10px;font-size:12px}
+    .create-task-card{padding:16px}
+    .create-task-card h3{margin:0 0 5px}.create-task-card>p{margin:0 0 12px;color:var(--muted);font-size:12px;line-height:1.45}
+    .task-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+    .task-form-grid .full{grid-column:1/-1}
+    .task-calculation{margin-top:13px;padding:12px;background:#07162d;border:1px solid #17345e;border-radius:12px;display:grid;gap:7px;font-size:12px}
+    .task-calculation div{display:flex;justify-content:space-between;gap:12px}.task-calculation strong{text-align:right}
+    .task-warning{margin-top:12px;padding:12px;border-radius:12px;color:#ffd66a;background:rgba(255,205,74,.08);border:1px solid rgba(255,205,74,.28);font-size:11px;line-height:1.45}
+    .my-task-reason{padding:10px;border-radius:10px;color:#ffd66a;background:rgba(255,205,74,.08);font-size:11px;line-height:1.4}
+    @media(max-width:390px){.task-form-grid{grid-template-columns:1fr}.task-form-grid .full{grid-column:auto}.user-task-counts{grid-template-columns:1fr 1fr}.task-tabs .tab{font-size:11px;padding-left:4px;padding-right:4px}}
     .ref-summary{
       padding:16px;
       display:grid;
@@ -530,9 +560,63 @@
 
     <section id="tasks" class="app-screen" hidden>
       <header class="top"><button class="icon-btn back">‹</button><div class="title">Задания</div><button class="icon-btn bell">♧<i class="dot"></i></button></header>
-      <div class="tabs"><button class="tab active">Все</button></div>
-      <div id="tasksTaskList" class="task-list">
-        <div class="card referral-empty">Подключаемся к серверу...</div>
+      <div class="tabs task-tabs">
+        <button class="tab active" data-task-tab="official">Официальные</button>
+        <button class="tab" data-task-tab="users">От пользователей</button>
+        <button class="tab" data-task-tab="create">Создать</button>
+      </div>
+
+      <div id="officialTasksPanel" class="task-panel">
+        <div id="tasksTaskList" class="task-list">
+          <div class="card referral-empty">Подключаемся к серверу...</div>
+        </div>
+      </div>
+
+      <div id="userTasksPanel" class="task-panel" hidden>
+        <div id="userTasksList" class="task-list">
+          <div class="card referral-empty">Загружаем задания пользователей...</div>
+        </div>
+      </div>
+
+      <div id="createTaskPanel" class="task-panel" hidden>
+        <div class="card create-task-card">
+          <h3 id="userTaskFormTitle">Создать задание</h3>
+          <p>Закажите подписчиков для открытого Telegram-канала за свой баланс GRAM.</p>
+          <div class="task-form-grid">
+            <label class="full">
+              <span class="field-label">Название задания</span>
+              <input id="userTaskTitleInput" class="field" maxlength="120" placeholder="Например: Подписаться на наш канал">
+            </label>
+            <label class="full">
+              <span class="field-label">Открытый Telegram-канал</span>
+              <input id="userTaskChannelInput" class="field" maxlength="80" placeholder="@channel или https://t.me/channel">
+            </label>
+            <label>
+              <span class="field-label">Количество подписчиков</span>
+              <input id="userTaskCountInput" class="field" type="number" min="50" step="1" value="50" inputmode="numeric">
+            </label>
+            <label>
+              <span class="field-label">Общий бюджет, GRAM</span>
+              <input id="userTaskBudgetInput" class="field" type="number" min="0.5" step="0.001" value="0.5" inputmode="decimal">
+            </label>
+          </div>
+          <div class="task-calculation">
+            <div><span>Минимальный бюджет</span><strong id="userTaskMinimumBudget">0.5 GRAM</strong></div>
+            <div><span>Комиссия проекта 15%</span><strong id="userTaskCommission">0.075 GRAM</strong></div>
+            <div><span>Исполнителям</span><strong id="userTaskRewardPool">0.425 GRAM</strong></div>
+            <div><span>Награда за человека</span><strong id="userTaskRewardPerUser">0.0085 GRAM</strong></div>
+          </div>
+          <div class="task-warning">
+            Бот должен быть администратором указанного канала. Исполнитель получает награду после сохранения подписки в течение 2 часов. Если он отпишется раньше, место снова освободится, а сумма останется в бюджете задания. Комиссия 15% после запуска не возвращается.
+          </div>
+          <button id="submitUserTaskBtn" class="btn" style="width:100%;margin-top:13px">Отправить на модерацию</button>
+          <button id="cancelEditUserTaskBtn" class="btn secondary" style="width:100%;margin-top:8px" hidden>Отменить редактирование</button>
+        </div>
+
+        <h3 class="section-title">Мои задания</h3>
+        <div id="myUserTasksList" class="task-list">
+          <div class="card referral-empty">У вас пока нет созданных заданий.</div>
+        </div>
       </div>
     </section>
 
@@ -715,6 +799,55 @@
     "Следите за обновлениями и получайте больше GRAM.":"Follow updates and earn more GRAM.",
     "Открыть задания":"Open tasks",
     "Все":"All",
+    "Официальные":"Official",
+    "От пользователей":"From users",
+    "Создать":"Create",
+    "Загружаем задания пользователей...":"Loading user tasks...",
+    "Создать задание":"Create a task",
+    "Редактировать задание":"Edit task",
+    "Закажите подписчиков для открытого Telegram-канала за свой баланс GRAM.":"Order subscribers for a public Telegram channel using your GRAM balance.",
+    "Название задания":"Task title",
+    "Открытый Telegram-канал":"Public Telegram channel",
+    "Количество подписчиков":"Number of subscribers",
+    "Общий бюджет, GRAM":"Total budget, GRAM",
+    "Минимальный бюджет":"Minimum budget",
+    "Комиссия проекта 15%":"Project commission 15%",
+    "Исполнителям":"For performers",
+    "Награда за человека":"Reward per person",
+    "Отправить на модерацию":"Submit for review",
+    "Сохранить исправления":"Save changes",
+    "Отменить редактирование":"Cancel editing",
+    "Мои задания":"My tasks",
+    "У вас пока нет созданных заданий.":"You have not created any tasks yet.",
+    "Новых заданий пользователей пока нет.":"There are no new user tasks yet.",
+    "Подтверждено":"Confirmed",
+    "На проверке":"Under review",
+    "Свободно":"Available",
+    "Ваше задание":"Your task",
+    "Нет мест":"No slots",
+    "Не пройдено":"Failed",
+    "Исправить":"Edit",
+    "Отменить заявку":"Cancel request",
+    "Остановить":"Stop",
+    "На модерации":"Under moderation",
+    "Нужны исправления":"Changes required",
+    "Активно":"Active",
+    "Приостановлено":"Paused",
+    "Останавливается":"Stopping",
+    "Завершено":"Completed",
+    "Отклонено":"Rejected",
+    "Отменено":"Cancelled",
+    "Остановлено":"Stopped",
+    "Общий бюджет":"Total budget",
+    "Комиссия 15%":"Commission 15%",
+    "Выплачено":"Paid",
+    "Осталось в пуле":"Remaining in pool",
+    "Открыть":"Open",
+    "Проверить":"Check",
+    "Проверяем...":"Checking...",
+    "Отправляем...":"Submitting...",
+    "Заполните все поля задания":"Fill in all task fields",
+    "Бот должен быть администратором указанного канала. Исполнитель получает награду после сохранения подписки в течение 2 часов. Если он отпишется раньше, место снова освободится, а сумма останется в бюджете задания. Комиссия 15% после запуска не возвращается.":"The bot must be an administrator of the specified channel. The performer receives the reward after keeping the subscription for 2 hours. If they unsubscribe earlier, the slot becomes available again and the amount remains in the task budget. The 15% commission is non-refundable after launch.",
     "Подписаться на канал Telegram":"Subscribe to Telegram channel",
     "Подписаться на GRAM Tasks":"Subscribe to GRAM Tasks",
     "Выполнить":"Complete",
@@ -926,8 +1059,20 @@
     const walletInput = document.getElementById("withdrawWalletInput");
     const amountInput = document.getElementById("withdrawAmountInput");
     const referralInput = document.getElementById("referralLinkInput");
+    const userTaskTitleInput = document.getElementById("userTaskTitleInput");
+    const userTaskChannelInput = document.getElementById("userTaskChannelInput");
     if (walletInput) walletInput.placeholder = currentLanguage === "en" ? "UQ... your TON address" : "UQ... ваш TON адрес";
     if (amountInput) amountInput.placeholder = currentLanguage === "en" ? "Enter amount" : "Введите сумму";
+    if (userTaskTitleInput) {
+      userTaskTitleInput.placeholder = currentLanguage === "en"
+        ? "For example: Subscribe to our channel"
+        : "Например: Подписаться на наш канал";
+    }
+    if (userTaskChannelInput) {
+      userTaskChannelInput.placeholder = currentLanguage === "en"
+        ? "@channel or https://t.me/channel"
+        : "@channel или https://t.me/channel";
+    }
     if (referralInput && !currentReferralLink) {
       referralInput.value = currentLanguage === "en" ? "Loading link..." : "Загрузка ссылки...";
     }
@@ -941,6 +1086,12 @@
     }
     if (typeof drawLeaderboardPage === "function") {
       drawLeaderboardPage();
+    }
+    if (typeof renderTasks === "function") {
+      renderTasks(currentOfficialTasks);
+      renderPublicUserTasks(currentPublicUserTasks);
+      renderMyUserTasks(currentMyUserTasks);
+      updateUserTaskCalculation(false);
     }
     if (serverLoader && !serverLoader.hidden) {
       const failed = !serverRetryBtn.hidden;
@@ -990,6 +1141,7 @@
     document.querySelectorAll(".nav button").forEach(b=>b.classList.toggle("active",b.dataset.open===id));
     if(id==="history") loadOperationHistory();
     if(id==="withdraw") loadWithdrawals();
+    if(id==="tasks") loadTasks().catch(error => console.error("Tasks refresh failed:", error));
 
     document.documentElement.scrollLeft = 0;
     document.body.scrollLeft = 0;
@@ -1283,6 +1435,19 @@
   let currentLeaderboardPrizePlaces = 10;
   let currentLeaderboardWeekEnd = null;
   let visibleLeaderboardCount = 10;
+  let currentOfficialTasks = [];
+  let currentPublicUserTasks = [];
+  let currentMyUserTasks = [];
+  let currentUserTaskRules = {
+    review_seconds: 7200,
+    commission_rate: 0.15,
+    min_count: 50,
+    min_budget: 0.5,
+    min_price_per_slot: 0.005,
+    max_open_orders: 2
+  };
+  let activeTaskTab = "official";
+  let editingUserTaskId = null;
 
   function copyReferralLink() {
     if (!currentReferralLink) {
@@ -1373,9 +1538,11 @@
   });
 
   function formatReward(value) {
-    return Number(value).toLocaleString(currentLanguage === "en" ? "en-US" : "ru-RU", {
-      maximumFractionDigits: 2
-    });
+    const numeric = Number(value || 0);
+    return numeric.toLocaleString(
+      currentLanguage === "en" ? "en-US" : "ru-RU",
+      { maximumFractionDigits: 8 }
+    );
   }
 
   function getReferralInitials(name) {
@@ -2195,7 +2362,7 @@
     }
   }
 
-  function makeTaskElement(task) {
+  function makeOfficialTaskElement(task) {
     const wrapper = document.createElement("div");
     wrapper.className = "card task";
 
@@ -2205,10 +2372,12 @@
 
     const info = document.createElement("div");
     info.className = "task-info";
-    info.innerHTML = `
-      <b>${task.title}</b>
-      <span class="reward">💎 +${formatReward(task.reward)} GRAM</span>
-    `;
+    const title = document.createElement("b");
+    title.textContent = task.title || "Задание";
+    const reward = document.createElement("span");
+    reward.className = "reward";
+    reward.textContent = `💎 +${formatReward(task.reward)} GRAM`;
+    info.append(title, reward);
 
     const button = document.createElement("button");
     button.className = task.completed ? "btn secondary" : "btn";
@@ -2259,9 +2428,7 @@
       } catch (error) {
         console.error("Task verification failed:", error);
 
-        if (
-          error?.message === "Сервер временно недоступен"
-        ) {
+        if (error?.message === "Сервер временно недоступен") {
           try {
             await wait(700);
 
@@ -2312,8 +2479,8 @@
     const tasksList = document.getElementById("tasksTaskList");
     if (!tasksList) return;
 
-    const allTasks = Array.isArray(tasks) ? tasks : [];
-    if (!allTasks.length) {
+    currentOfficialTasks = Array.isArray(tasks) ? tasks : [];
+    if (!currentOfficialTasks.length) {
       const empty = document.createElement("div");
       empty.className = "card referral-empty";
       empty.textContent = "Новых заданий пока нет.";
@@ -2321,16 +2488,420 @@
       return;
     }
 
-    tasksList.replaceChildren(...allTasks.map(makeTaskElement));
+    tasksList.replaceChildren(
+      ...currentOfficialTasks.map(makeOfficialTaskElement)
+    );
   }
 
+  function taskStatusClass(status) {
+    if (["completed", "active"].includes(status)) return "success";
+    if (["rejected", "cancelled", "failed"].includes(status)) return "danger";
+    if (["pending", "changes", "paused", "stopping"].includes(status)) return "warning";
+    return "";
+  }
+
+  function createTaskStatusPill(task) {
+    const pill = document.createElement("span");
+    pill.className = `task-status-pill ${taskStatusClass(task.status)}`;
+    pill.textContent = task.status_label || task.status || "Активно";
+    return pill;
+  }
+
+  function createUserTaskProgress(task) {
+    const fragment = document.createDocumentFragment();
+    const progressRow = document.createElement("div");
+    progressRow.className = "user-task-progress-row";
+    const left = document.createElement("span");
+    left.textContent = `Подтверждено: ${Number(task.confirmed_count || 0)} / ${Number(task.target_count || 0)}`;
+    const right = document.createElement("span");
+    const percent = Number(task.target_count || 0) > 0
+      ? Math.min(100, Math.round((Number(task.confirmed_count || 0) / Number(task.target_count)) * 100))
+      : 0;
+    right.textContent = `${percent}%`;
+    progressRow.append(left, right);
+
+    const progress = document.createElement("div");
+    progress.className = "user-task-progress";
+    const bar = document.createElement("i");
+    bar.style.width = `${percent}%`;
+    progress.append(bar);
+
+    const counts = document.createElement("div");
+    counts.className = "user-task-counts";
+    const countItems = [
+      [Number(task.confirmed_count || 0), "Подтверждено"],
+      [Number(task.pending_count || 0), "На проверке"],
+      [Number(task.free_slots || 0), "Свободно"]
+    ];
+    countItems.forEach(([value, label]) => {
+      const item = document.createElement("div");
+      const strong = document.createElement("strong");
+      strong.textContent = String(value);
+      const span = document.createElement("span");
+      span.textContent = label;
+      item.append(strong, span);
+      counts.append(item);
+    });
+
+    fragment.append(progressRow, progress, counts);
+    return fragment;
+  }
+
+  function userTaskButtonState(task) {
+    if (task.is_creator) return {text:"Ваше задание", disabled:true};
+    if (task.completion_status === "pending") return {text:"На проверке", disabled:true};
+    if (task.completion_status === "confirmed") return {text:"Выполнено", disabled:true};
+    if (task.completion_status === "failed") return {text:"Не пройдено", disabled:true};
+    if (Number(task.free_slots || 0) < 1) return {text:"Нет мест", disabled:true};
+    return {text:"Открыть", disabled:false};
+  }
+
+  function makePublicUserTaskElement(task) {
+    const card = document.createElement("div");
+    card.className = "card user-task-card";
+
+    const head = document.createElement("div");
+    head.className = "user-task-head";
+    const logo = document.createElement("div");
+    logo.className = "task-logo";
+    logo.textContent = task.icon || "✈️";
+    const titleBox = document.createElement("div");
+    titleBox.className = "user-task-title";
+    const title = document.createElement("b");
+    title.textContent = task.title || "Задание пользователя";
+    const channel = document.createElement("small");
+    channel.textContent = task.channel || task.target || "Telegram";
+    titleBox.append(title, channel);
+    const reward = document.createElement("span");
+    reward.className = "reward";
+    reward.textContent = `+${formatReward(task.reward_per_completion)} GRAM`;
+    head.append(logo, titleBox, reward);
+
+    card.append(head, createUserTaskProgress(task));
+
+    const actions = document.createElement("div");
+    actions.className = "task-actions";
+    const button = document.createElement("button");
+    const initialState = userTaskButtonState(task);
+    button.className = initialState.disabled ? "btn secondary" : "btn";
+    button.textContent = initialState.text;
+    button.disabled = initialState.disabled;
+    let opened = false;
+
+    button.addEventListener("click", async () => {
+      if (button.disabled) return;
+      if (!opened) {
+        openTaskTarget(task);
+        opened = true;
+        button.textContent = "Проверить";
+        return;
+      }
+
+      const oldText = button.textContent;
+      button.disabled = true;
+      button.textContent = "Проверяем...";
+      try {
+        const result = await apiPost(
+          `/api/user-tasks/${task.id}/verify`,
+          {},
+          15000
+        );
+        showToast(result.message || "Задание принято на проверку");
+        if (result.pending) {
+          await Promise.allSettled([
+            loadTasks(),
+            loadOperationHistory()
+          ]);
+          return;
+        }
+      } catch (error) {
+        console.error("User task verification failed:", error);
+        showToast(error.message || "Ошибка проверки задания");
+      }
+      button.disabled = false;
+      button.textContent = oldText;
+    });
+
+    actions.append(button);
+    card.append(actions);
+    return card;
+  }
+
+  function renderPublicUserTasks(tasks) {
+    const list = document.getElementById("userTasksList");
+    if (!list) return;
+    currentPublicUserTasks = Array.isArray(tasks) ? tasks : [];
+
+    if (!currentPublicUserTasks.length) {
+      const empty = document.createElement("div");
+      empty.className = "card referral-empty";
+      empty.textContent = "Новых заданий пользователей пока нет.";
+      list.replaceChildren(empty);
+      return;
+    }
+    list.replaceChildren(
+      ...currentPublicUserTasks.map(makePublicUserTaskElement)
+    );
+  }
+
+  function resetUserTaskForm() {
+    editingUserTaskId = null;
+    const title = document.getElementById("userTaskTitleInput");
+    const channel = document.getElementById("userTaskChannelInput");
+    const count = document.getElementById("userTaskCountInput");
+    const budget = document.getElementById("userTaskBudgetInput");
+    const formTitle = document.getElementById("userTaskFormTitle");
+    const submit = document.getElementById("submitUserTaskBtn");
+    const cancel = document.getElementById("cancelEditUserTaskBtn");
+    if (title) title.value = "";
+    if (channel) channel.value = "";
+    if (count) count.value = String(currentUserTaskRules.min_count || 50);
+    if (budget) budget.value = String(currentUserTaskRules.min_budget || 0.5);
+    if (formTitle) formTitle.textContent = "Создать задание";
+    if (submit) submit.textContent = "Отправить на модерацию";
+    if (cancel) cancel.hidden = true;
+    updateUserTaskCalculation(true);
+  }
+
+  function editMyUserTask(task) {
+    editingUserTaskId = Number(task.id);
+    document.getElementById("userTaskTitleInput").value = task.title || "";
+    document.getElementById("userTaskChannelInput").value = task.channel || "";
+    document.getElementById("userTaskCountInput").value = String(task.target_count || 50);
+    document.getElementById("userTaskBudgetInput").value = String(task.total_budget || 0.5);
+    document.getElementById("userTaskFormTitle").textContent = "Редактировать задание";
+    document.getElementById("submitUserTaskBtn").textContent = "Сохранить исправления";
+    document.getElementById("cancelEditUserTaskBtn").hidden = false;
+    setTaskTab("create");
+    updateUserTaskCalculation(false);
+    window.scrollTo({top:0,left:0,behavior:"smooth"});
+  }
+
+  async function cancelMyUserTask(task) {
+    if (!window.confirm("Отменить заявку и вернуть замороженный бюджет?")) return;
+    try {
+      const result = await apiPost(`/api/user-tasks/${task.id}/cancel`, {}, 12000);
+      if (result.user) updateUserUi(result.user);
+      showToast(result.message || "Заявка отменена");
+      if (editingUserTaskId === Number(task.id)) resetUserTaskForm();
+      await Promise.allSettled([loadTasks(), loadOperationHistory()]);
+    } catch (error) {
+      showToast(error.message || "Не удалось отменить заявку");
+    }
+  }
+
+  async function stopMyUserTask(task) {
+    if (!window.confirm("Остановить задание? Комиссия 15% не возвращается.")) return;
+    try {
+      const result = await apiPost(`/api/user-tasks/${task.id}/stop`, {}, 12000);
+      if (result.user) updateUserUi(result.user);
+      showToast(result.message || "Задание остановлено");
+      await Promise.allSettled([loadTasks(), loadOperationHistory()]);
+    } catch (error) {
+      showToast(error.message || "Не удалось остановить задание");
+    }
+  }
+
+  function makeMyUserTaskElement(task) {
+    const card = document.createElement("div");
+    card.className = "card user-task-card";
+
+    const head = document.createElement("div");
+    head.className = "user-task-head";
+    const logo = document.createElement("div");
+    logo.className = "task-logo";
+    logo.textContent = "✈️";
+    const titleBox = document.createElement("div");
+    titleBox.className = "user-task-title";
+    const title = document.createElement("b");
+    title.textContent = `#${task.id} — ${task.title}`;
+    const channel = document.createElement("small");
+    channel.textContent = task.channel || "";
+    titleBox.append(title, channel);
+    head.append(logo, titleBox, createTaskStatusPill(task));
+    card.append(head, createUserTaskProgress(task));
+
+    const finance = document.createElement("div");
+    finance.className = "task-calculation";
+    const rows = [
+      ["Общий бюджет", `${formatReward(task.total_budget)} GRAM`],
+      ["Комиссия 15%", `${formatReward(task.commission_amount)} GRAM`],
+      ["Награда за человека", `${formatReward(task.reward_per_completion)} GRAM`],
+      ["Выплачено", `${formatReward(task.paid_amount)} GRAM`],
+      ["На проверке", `${formatReward(task.pending_amount)} GRAM`],
+      ["Осталось в пуле", `${formatReward(task.remaining_reward_budget)} GRAM`]
+    ];
+    rows.forEach(([label, value]) => {
+      const row = document.createElement("div");
+      const span = document.createElement("span");
+      span.textContent = label;
+      const strong = document.createElement("strong");
+      strong.textContent = value;
+      row.append(span, strong);
+      finance.append(row);
+    });
+    card.append(finance);
+
+    if (task.status_reason) {
+      const reason = document.createElement("div");
+      reason.className = "my-task-reason";
+      reason.textContent = task.status_reason;
+      card.append(reason);
+    }
+
+    const actions = document.createElement("div");
+    actions.className = "task-actions";
+    if (["pending", "changes"].includes(task.status)) {
+      const edit = document.createElement("button");
+      edit.className = "btn secondary";
+      edit.textContent = "Исправить";
+      edit.addEventListener("click", () => editMyUserTask(task));
+      const cancel = document.createElement("button");
+      cancel.className = "btn secondary";
+      cancel.textContent = "Отменить заявку";
+      cancel.addEventListener("click", () => cancelMyUserTask(task));
+      actions.append(edit, cancel);
+    } else if (["active", "paused"].includes(task.status)) {
+      const stop = document.createElement("button");
+      stop.className = "btn secondary";
+      stop.textContent = "Остановить";
+      stop.addEventListener("click", () => stopMyUserTask(task));
+      actions.append(stop);
+    }
+    if (actions.children.length) card.append(actions);
+    return card;
+  }
+
+  function renderMyUserTasks(tasks) {
+    const list = document.getElementById("myUserTasksList");
+    if (!list) return;
+    currentMyUserTasks = Array.isArray(tasks) ? tasks : [];
+    if (!currentMyUserTasks.length) {
+      const empty = document.createElement("div");
+      empty.className = "card referral-empty";
+      empty.textContent = "У вас пока нет созданных заданий.";
+      list.replaceChildren(empty);
+      return;
+    }
+    list.replaceChildren(
+      ...currentMyUserTasks.map(makeMyUserTaskElement)
+    );
+  }
+
+  function setTaskTab(tabName) {
+    const allowed = ["official", "users", "create"];
+    activeTaskTab = allowed.includes(tabName) ? tabName : "official";
+    document.querySelectorAll("[data-task-tab]").forEach(button => {
+      button.classList.toggle("active", button.dataset.taskTab === activeTaskTab);
+    });
+    const panels = {
+      official: document.getElementById("officialTasksPanel"),
+      users: document.getElementById("userTasksPanel"),
+      create: document.getElementById("createTaskPanel")
+    };
+    Object.entries(panels).forEach(([name, panel]) => {
+      if (panel) panel.hidden = name !== activeTaskTab;
+    });
+  }
+
+  document.querySelectorAll("[data-task-tab]").forEach(button => {
+    button.addEventListener("click", () => setTaskTab(button.dataset.taskTab));
+  });
+
+  function updateUserTaskCalculation(adjustBudget = false) {
+    const countInput = document.getElementById("userTaskCountInput");
+    const budgetInput = document.getElementById("userTaskBudgetInput");
+    if (!countInput || !budgetInput) return;
+
+    const minCount = Number(currentUserTaskRules.min_count || 50);
+    const count = Math.max(minCount, Math.floor(Number(countInput.value || minCount)));
+    const minimumBudget = Math.max(
+      Number(currentUserTaskRules.min_budget || 0.5),
+      count * Number(currentUserTaskRules.min_price_per_slot || 0.005)
+    );
+    if (adjustBudget && Number(budgetInput.value || 0) < minimumBudget) {
+      budgetInput.value = String(Number(minimumBudget.toFixed(8)));
+    }
+    const budget = Math.max(0, Number(budgetInput.value || 0));
+    const commission = budget * Number(currentUserTaskRules.commission_rate || 0.15);
+    const pool = Math.max(0, budget - commission);
+    const reward = count > 0 ? pool / count : 0;
+
+    countInput.min = String(minCount);
+    budgetInput.min = String(minimumBudget);
+    document.getElementById("userTaskMinimumBudget").textContent = `${formatReward(minimumBudget)} GRAM`;
+    document.getElementById("userTaskCommission").textContent = `${formatReward(commission)} GRAM`;
+    document.getElementById("userTaskRewardPool").textContent = `${formatReward(pool)} GRAM`;
+    document.getElementById("userTaskRewardPerUser").textContent = `${formatReward(reward)} GRAM`;
+  }
+
+  document.getElementById("userTaskCountInput")?.addEventListener("input", () => updateUserTaskCalculation(true));
+  document.getElementById("userTaskBudgetInput")?.addEventListener("input", () => updateUserTaskCalculation(false));
+  document.getElementById("cancelEditUserTaskBtn")?.addEventListener("click", resetUserTaskForm);
+
+  document.getElementById("submitUserTaskBtn")?.addEventListener("click", async () => {
+    const button = document.getElementById("submitUserTaskBtn");
+    const title = document.getElementById("userTaskTitleInput").value.trim();
+    const channel = document.getElementById("userTaskChannelInput").value.trim();
+    const targetCount = Math.floor(Number(document.getElementById("userTaskCountInput").value || 0));
+    const totalBudget = Number(document.getElementById("userTaskBudgetInput").value || 0);
+
+    if (!title || !channel || !targetCount || !totalBudget) {
+      showToast("Заполните все поля задания");
+      return;
+    }
+
+    const oldText = button.textContent;
+    button.disabled = true;
+    button.textContent = "Отправляем...";
+    try {
+      const path = editingUserTaskId
+        ? `/api/user-tasks/${editingUserTaskId}/update`
+        : "/api/user-tasks/create";
+      const result = await apiPost(
+        path,
+        {
+          title,
+          channel,
+          target_count: targetCount,
+          total_budget: totalBudget
+        },
+        20000
+      );
+      if (result.user) updateUserUi(result.user);
+      showToast(result.message || "Задание отправлено на модерацию");
+      resetUserTaskForm();
+      await Promise.allSettled([loadTasks(), loadOperationHistory()]);
+      setTaskTab("create");
+    } catch (error) {
+      console.error("User task submit failed:", error);
+      showToast(error.message || "Не удалось создать задание");
+    } finally {
+      button.disabled = false;
+      button.textContent = editingUserTaskId ? "Сохранить исправления" : "Отправить на модерацию";
+    }
+  });
+
   async function loadTasks() {
-    const data = await apiPost("/api/tasks", {}, 6500);
-    const taskItems = Array.isArray(data.tasks)
-      ? data.tasks
+    const data = await apiPost("/api/tasks", {}, 10000);
+    currentUserTaskRules = {
+      ...currentUserTaskRules,
+      ...(data.user_task_rules || {})
+    };
+    const officialItems = Array.isArray(data.official_tasks)
+      ? data.official_tasks
+      : (Array.isArray(data.tasks) ? data.tasks : []);
+    const publicItems = Array.isArray(data.user_tasks)
+      ? data.user_tasks
       : [];
-    renderTasks(taskItems);
-    writeCache(TASKS_CACHE_KEY, taskItems);
+    const myItems = Array.isArray(data.my_tasks)
+      ? data.my_tasks
+      : [];
+    renderTasks(officialItems);
+    renderPublicUserTasks(publicItems);
+    renderMyUserTasks(myItems);
+    writeCache(TASKS_CACHE_KEY, officialItems);
+    updateUserTaskCalculation(false);
     return data;
   }
 
