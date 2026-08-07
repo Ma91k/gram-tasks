@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="ru">
-<!-- redeploy -->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -1159,7 +1158,6 @@
     `gram_tasks_subscription_ok_${TELEGRAM_USER_ID}`;
   const LEGACY_SUBSCRIPTION_CACHE_KEY =
     "gram_tasks_subscription_ok";
-  const SUBSCRIPTION_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
   const APP_CACHE_PREFIX =
     `gram_tasks_app_v2_${TELEGRAM_USER_ID}`;
   const USER_CACHE_KEY = `${APP_CACHE_PREFIX}_user`;
@@ -1203,37 +1201,24 @@
   }
 
   function markSubscriptionVerified() {
-    localStorage.setItem(
-      SUBSCRIPTION_CACHE_KEY,
-      String(Date.now())
-    );
-    localStorage.removeItem(
-      LEGACY_SUBSCRIPTION_CACHE_KEY
-    );
+    // После первого успешного подтверждения не заставляем
+    // пользователя проходить входную подписку повторно.
+    localStorage.setItem(SUBSCRIPTION_CACHE_KEY, "1");
+    localStorage.removeItem(LEGACY_SUBSCRIPTION_CACHE_KEY);
   }
 
-  function hasFreshSubscriptionCache() {
-    const currentValue = Number(
-      localStorage.getItem(SUBSCRIPTION_CACHE_KEY) || 0
-    );
-
-    if (
-      currentValue > 0 &&
-      Date.now() - currentValue < SUBSCRIPTION_CACHE_TTL_MS
-    ) {
+  function hasSubscriptionCache() {
+    if (localStorage.getItem(SUBSCRIPTION_CACHE_KEY)) {
       return true;
     }
 
     if (
-      localStorage.getItem(
-        LEGACY_SUBSCRIPTION_CACHE_KEY
-      ) === "1"
+      localStorage.getItem(LEGACY_SUBSCRIPTION_CACHE_KEY) === "1"
     ) {
       markSubscriptionVerified();
       return true;
     }
 
-    localStorage.removeItem(SUBSCRIPTION_CACHE_KEY);
     return false;
   }
 
@@ -1254,7 +1239,6 @@
   }
 
   function showSubscriptionScreen() {
-    localStorage.removeItem(SUBSCRIPTION_CACHE_KEY);
     app.classList.remove("active");
     nav.classList.add("hidden");
     sub.classList.add("active");
@@ -1389,28 +1373,6 @@
     }
   }
 
-  async function silentSubscriptionCheck() {
-    try {
-      const subscribed =
-        await requestSubscriptionStatus(16000);
-
-      if (subscribed) {
-        markSubscriptionVerified();
-        return;
-      }
-
-      showSubscriptionScreen();
-      showToast(
-        "Подписка на канал больше не активна"
-      );
-    } catch (error) {
-      console.error(
-        "Silent subscription check failed:",
-        error
-      );
-    }
-  }
-
   document.getElementById(
     "checkSubscription"
   ).addEventListener(
@@ -1418,14 +1380,35 @@
     checkRealSubscription
   );
 
-  if (hasFreshSubscriptionCache()) {
-    showApplication();
-    queueMicrotask(() => {
+  async function restoreSubscriptionAccess() {
+    if (hasSubscriptionCache()) {
+      showApplication();
       restoreCachedAppData();
-      loadAppData({silent:true});
-      setTimeout(silentSubscriptionCheck, 1800);
-    });
+      queueMicrotask(() => loadAppData({silent:true}));
+      return;
+    }
+
+    // На новом устройстве или после очистки кеша спрашиваем backend.
+    // Если пользователь уже подтверждал подписку когда-либо раньше,
+    // backend сразу разрешит вход без повторной проверки Telegram.
+    try {
+      const subscribed = await requestSubscriptionStatus(16000);
+
+      if (subscribed) {
+        markSubscriptionVerified();
+        showApplication();
+        restoreCachedAppData();
+        queueMicrotask(() => loadAppData({silent:true}));
+        return;
+      }
+    } catch (error) {
+      console.error("Initial subscription access check failed:", error);
+    }
+
+    showSubscriptionScreen();
   }
+
+  queueMicrotask(restoreSubscriptionAccess);
   let currentReferralLink = "";
   let currentUserBalance = 0;
   let currentMinWithdrawal = 5;
