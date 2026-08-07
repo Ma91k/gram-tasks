@@ -581,18 +581,25 @@
       <div id="createTaskPanel" class="task-panel" hidden>
         <div class="card create-task-card">
           <h3 id="userTaskFormTitle">Создать задание</h3>
-          <p>Закажите подписчиков для открытого Telegram-канала за свой баланс GRAM.</p>
+          <p>Создайте задание на подписку на канал или переход в Telegram-бота за свой баланс GRAM.</p>
           <div class="task-form-grid">
+            <label class="full">
+              <span class="field-label">Тип задания</span>
+              <select id="userTaskTypeInput" class="field">
+                <option value="channel">Подписка на канал</option>
+                <option value="bot">Перейти в бота</option>
+              </select>
+            </label>
             <label class="full">
               <span class="field-label">Название задания</span>
               <input id="userTaskTitleInput" class="field" maxlength="120" placeholder="Например: Подписаться на наш канал">
             </label>
             <label class="full">
-              <span class="field-label">Открытый Telegram-канал</span>
-              <input id="userTaskChannelInput" class="field" maxlength="80" placeholder="@channel или https://t.me/channel">
+              <span id="userTaskTargetLabel" class="field-label">Открытый Telegram-канал</span>
+              <input id="userTaskChannelInput" class="field" maxlength="250" placeholder="@channel или https://t.me/channel">
             </label>
             <label>
-              <span class="field-label">Количество подписчиков</span>
+              <span id="userTaskCountLabel" class="field-label">Количество подписчиков</span>
               <input id="userTaskCountInput" class="field" type="number" min="50" step="1" value="50" inputmode="numeric">
             </label>
             <label>
@@ -606,7 +613,7 @@
             <div><span>Исполнителям</span><strong id="userTaskRewardPool">0.425 GRAM</strong></div>
             <div><span>Награда за человека</span><strong id="userTaskRewardPerUser">0.0085 GRAM</strong></div>
           </div>
-          <div class="task-warning">
+          <div id="userTaskWarning" class="task-warning">
             Бот должен быть администратором указанного канала. Исполнитель получает награду после сохранения подписки в течение 2 часов. Если он отпишется раньше, место снова освободится, а сумма останется в бюджете задания. Комиссия 15% после запуска не возвращается.
           </div>
           <button id="submitUserTaskBtn" class="btn" style="width:100%;margin-top:13px">Отправить на модерацию</button>
@@ -804,6 +811,12 @@
     "Создать":"Create",
     "Загружаем задания пользователей...":"Loading user tasks...",
     "Создать задание":"Create a task",
+    "Тип задания":"Task type",
+    "Подписка на канал":"Subscribe to channel",
+    "Перейти в бота":"Open bot",
+    "Ссылка на Telegram-бота":"Telegram bot link",
+    "Количество переходов":"Number of visits",
+    "Создайте задание на подписку на канал или переход в Telegram-бота за свой баланс GRAM.":"Create a channel subscription or Telegram bot visit task using your GRAM balance.",
     "Редактировать задание":"Edit task",
     "Закажите подписчиков для открытого Telegram-канала за свой баланс GRAM.":"Order subscribers for a public Telegram channel using your GRAM balance.",
     "Название задания":"Task title",
@@ -1069,9 +1082,10 @@
         : "Например: Подписаться на наш канал";
     }
     if (userTaskChannelInput) {
-      userTaskChannelInput.placeholder = currentLanguage === "en"
-        ? "@channel or https://t.me/channel"
-        : "@channel или https://t.me/channel";
+      const type = document.getElementById("userTaskTypeInput")?.value === "bot" ? "bot" : "channel";
+      userTaskChannelInput.placeholder = type === "bot"
+        ? "https://t.me/example_bot?start=ref123"
+        : (currentLanguage === "en" ? "@channel or https://t.me/channel" : "@channel или https://t.me/channel");
     }
     if (referralInput && !currentReferralLink) {
       referralInput.value = currentLanguage === "en" ? "Loading link..." : "Загрузка ссылки...";
@@ -1080,6 +1094,8 @@
     document.querySelectorAll("[data-language-check]").forEach(check => {
       check.textContent = check.dataset.languageCheck === currentLanguage ? "✓" : "";
     });
+
+    if (typeof applyUserTaskTypeUi === "function") applyUserTaskTypeUi();
 
     if (typeof renderOperationHistory === "function") {
       renderOperationHistory(currentHistoryFilter);
@@ -2568,16 +2584,26 @@
     const button = document.createElement("button");
     const initialState = userTaskButtonState(task);
     button.className = initialState.disabled ? "btn secondary" : "btn";
-    button.textContent = initialState.text;
+    button.textContent = initialState.disabled
+      ? initialState.text
+      : (task.task_type === "bot" ? "Перейти в бота" : initialState.text);
     button.disabled = initialState.disabled;
     let opened = false;
 
     button.addEventListener("click", async () => {
       if (button.disabled) return;
       if (!opened) {
+        if (task.task_type === "bot") {
+          try {
+            await apiPost(`/api/user-tasks/${task.id}/open`, {}, 10000);
+          } catch (error) {
+            showToast(error.message || "Не удалось открыть задание");
+            return;
+          }
+        }
         openTaskTarget(task);
         opened = true;
-        button.textContent = "Проверить";
+        button.textContent = task.task_type === "bot" ? "Получить награду" : "Проверить";
         return;
       }
 
@@ -2590,11 +2616,13 @@
           {},
           15000
         );
-        showToast(result.message || "Задание принято на проверку");
-        if (result.pending) {
+        showToast(result.message || (result.completed ? "Награда начислена" : "Задание принято на проверку"));
+        if (result.user) updateUserUi(result.user);
+        if (result.pending || result.completed) {
           await Promise.allSettled([
             loadTasks(),
-            loadOperationHistory()
+            loadOperationHistory(),
+            result.completed ? loadUserData() : Promise.resolve()
           ]);
           return;
         }
@@ -2628,8 +2656,38 @@
     );
   }
 
+  function selectedUserTaskType() {
+    return document.getElementById("userTaskTypeInput")?.value === "bot" ? "bot" : "channel";
+  }
+
+  function applyUserTaskTypeUi() {
+    const type = selectedUserTaskType();
+    const en = currentLanguage === "en";
+    const targetLabel = document.getElementById("userTaskTargetLabel");
+    const targetInput = document.getElementById("userTaskChannelInput");
+    const countLabel = document.getElementById("userTaskCountLabel");
+    const warning = document.getElementById("userTaskWarning");
+
+    if (type === "bot") {
+      if (targetLabel) targetLabel.textContent = en ? "Telegram bot link" : "Ссылка на Telegram-бота";
+      if (targetInput) targetInput.placeholder = "https://t.me/example_bot?start=ref123";
+      if (countLabel) countLabel.textContent = en ? "Number of visits" : "Количество переходов";
+      if (warning) warning.textContent = en
+        ? "You can use a normal or referral link to a Telegram bot. GRAM Tasks records the link visit and credits the reward after the user returns. Pressing Start inside a third-party bot cannot be verified technically. The 15% commission is non-refundable after launch."
+        : "Можно указать обычную или реферальную ссылку на Telegram-бота. GRAM Tasks фиксирует переход по ссылке и после возвращения начисляет награду. Нажатие Start внутри чужого бота технически не проверяется. Комиссия 15% после запуска не возвращается.";
+    } else {
+      if (targetLabel) targetLabel.textContent = en ? "Public Telegram channel" : "Открытый Telegram-канал";
+      if (targetInput) targetInput.placeholder = en ? "@channel or https://t.me/channel" : "@channel или https://t.me/channel";
+      if (countLabel) countLabel.textContent = en ? "Number of subscribers" : "Количество подписчиков";
+      if (warning) warning.textContent = en
+        ? "The bot must be an administrator of the specified channel. The executor receives the reward after keeping the subscription for 2 hours. If they unsubscribe earlier, the slot becomes available again and the amount stays in the task budget. The 15% commission is non-refundable after launch."
+        : "Бот должен быть администратором указанного канала. Исполнитель получает награду после сохранения подписки в течение 2 часов. Если он отпишется раньше, место снова освободится, а сумма останется в бюджете задания. Комиссия 15% после запуска не возвращается.";
+    }
+  }
+
   function resetUserTaskForm() {
     editingUserTaskId = null;
+    const type = document.getElementById("userTaskTypeInput");
     const title = document.getElementById("userTaskTitleInput");
     const channel = document.getElementById("userTaskChannelInput");
     const count = document.getElementById("userTaskCountInput");
@@ -2637,6 +2695,7 @@
     const formTitle = document.getElementById("userTaskFormTitle");
     const submit = document.getElementById("submitUserTaskBtn");
     const cancel = document.getElementById("cancelEditUserTaskBtn");
+    if (type) type.value = "channel";
     if (title) title.value = "";
     if (channel) channel.value = "";
     if (count) count.value = String(currentUserTaskRules.min_count || 50);
@@ -2644,11 +2703,13 @@
     if (formTitle) formTitle.textContent = "Создать задание";
     if (submit) submit.textContent = "Отправить на модерацию";
     if (cancel) cancel.hidden = true;
+    applyUserTaskTypeUi();
     updateUserTaskCalculation(true);
   }
 
   function editMyUserTask(task) {
     editingUserTaskId = Number(task.id);
+    document.getElementById("userTaskTypeInput").value = task.task_type === "bot" ? "bot" : "channel";
     document.getElementById("userTaskTitleInput").value = task.title || "";
     document.getElementById("userTaskChannelInput").value = task.channel || "";
     document.getElementById("userTaskCountInput").value = String(task.target_count || 50);
@@ -2657,6 +2718,7 @@
     document.getElementById("submitUserTaskBtn").textContent = "Сохранить исправления";
     document.getElementById("cancelEditUserTaskBtn").hidden = false;
     setTaskTab("create");
+    applyUserTaskTypeUi();
     updateUserTaskCalculation(false);
     window.scrollTo({top:0,left:0,behavior:"smooth"});
   }
@@ -2694,7 +2756,7 @@
     head.className = "user-task-head";
     const logo = document.createElement("div");
     logo.className = "task-logo";
-    logo.textContent = "✈️";
+    logo.textContent = task.task_type === "bot" ? "🤖" : "✈️";
     const titleBox = document.createElement("div");
     titleBox.className = "user-task-title";
     const title = document.createElement("b");
@@ -2791,6 +2853,7 @@
   document.querySelectorAll("[data-task-tab]").forEach(button => {
     button.addEventListener("click", () => setTaskTab(button.dataset.taskTab));
   });
+  applyUserTaskTypeUi();
 
   function updateUserTaskCalculation(adjustBudget = false) {
     const countInput = document.getElementById("userTaskCountInput");
@@ -2819,12 +2882,17 @@
     document.getElementById("userTaskRewardPerUser").textContent = `${formatReward(reward)} GRAM`;
   }
 
+  document.getElementById("userTaskTypeInput")?.addEventListener("change", () => {
+    applyUserTaskTypeUi();
+    updateUserTaskCalculation(true);
+  });
   document.getElementById("userTaskCountInput")?.addEventListener("input", () => updateUserTaskCalculation(true));
   document.getElementById("userTaskBudgetInput")?.addEventListener("input", () => updateUserTaskCalculation(false));
   document.getElementById("cancelEditUserTaskBtn")?.addEventListener("click", resetUserTaskForm);
 
   document.getElementById("submitUserTaskBtn")?.addEventListener("click", async () => {
     const button = document.getElementById("submitUserTaskBtn");
+    const taskType = selectedUserTaskType();
     const title = document.getElementById("userTaskTitleInput").value.trim();
     const channel = document.getElementById("userTaskChannelInput").value.trim();
     const targetCount = Math.floor(Number(document.getElementById("userTaskCountInput").value || 0));
@@ -2847,6 +2915,7 @@
         {
           title,
           channel,
+          task_type: taskType,
           target_count: targetCount,
           total_budget: totalBudget
         },
