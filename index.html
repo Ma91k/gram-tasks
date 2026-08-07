@@ -2381,7 +2381,9 @@
 
     const button = document.createElement("button");
     button.className = task.completed ? "btn secondary" : "btn";
-    button.textContent = task.completed ? "Выполнено" : "Открыть";
+    button.textContent = task.completed
+      ? "Выполнено"
+      : (task.task_type === "bot" ? "Перейти в бота" : "Открыть");
     button.disabled = task.completed;
 
     let opened = false;
@@ -2390,6 +2392,30 @@
       if (task.completed) return;
 
       if (!opened) {
+        if (task.task_type === "bot") {
+          const oldText = button.textContent;
+          button.disabled = true;
+          button.textContent = "Открываем...";
+
+          try {
+            const openResult = await apiPost(
+              `/api/tasks/${task.id}/open`,
+              {},
+              10000
+            );
+            openTaskTarget({ ...task, target: openResult.target || task.target });
+            opened = true;
+            button.textContent = "Получить награду";
+          } catch (error) {
+            console.error("Official bot task open failed:", error);
+            showToast(error.message || "Не удалось открыть бота");
+            button.textContent = oldText;
+          }
+
+          button.disabled = false;
+          return;
+        }
+
         openTaskTarget(task);
         opened = true;
         button.textContent = "Проверить";
